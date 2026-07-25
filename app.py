@@ -6,15 +6,13 @@ from docx.oxml.ns import nsdecls
 import io
 
 def panggil_ai_guru(topik, cp, komponen_rpp, instruksi_khusus):
-    # MEMANGGIL DARI BRANKAS RAHASIA STREAMLIT (AMAN DARI SCANNING GITHUB)
     api_key_ai = st.secrets.get("GEMINI_API_KEY", "")
-    
     if not api_key_ai:
-        return "⚠️ Eror: Kunci API AI kosong di menu Secrets Streamlit Anda."
+        return "⚠️ Kunci API kosong di menu Secrets Streamlit Anda."
     try:
         import requests, json
         url = "https://googleapis.com"
-        headers = {'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0'}
+        headers = {'Content-Type': 'application/json'}
         params = {"key": str(api_key_ai).strip()}
         prompt = f"Topik: {topik}\nCP: {cp}\nKomponen: {komponen_rpp}\nInstruksi: {instruksi_khusus}"
         payload = {"contents": [{"parts": [{"text": prompt}]}]}
@@ -51,14 +49,12 @@ def buat_dokumen_rpm(data):
     
     doc.add_heading("II. KOMPONEN INTI RPM MENDALAM", level=2)
     t_inti = doc.add_table(rows=9, cols=2); t_inti.style = 'Table Grid'
-    hdr_cells_0 = t_inti.rows.cells
-    hdr_cells_1 = t_inti.rows.cells
-    hdr_cells_0.text = 'Komponen RPM'
-    hdr_cells_1.text = 'Deskripsi / Detail Rencana Kerja (Hasil AI & Guru)'
-    hdr_cells_0.paragraphs.runs.font.bold = True
-    hdr_cells_1.paragraphs.runs.font.bold = True
-    hdr_cells_0._tc.get_or_add_tcPr().append(parse_xml(r'<w:shd {} w:fill="E6E6E6"/>'.format(nsdecls('w'))))
-    hdr_cells_1._tc.get_or_add_tcPr().append(parse_xml(r'<w:shd {} w:fill="E6E6E6"/>'.format(nsdecls('w'))))
+    hdr = t_inti.rows.cells
+    hdr.text = 'Komponen RPM'; hdr.text = 'Deskripsi / Detail Rencana Kerja'
+    hdr.paragraphs.runs.font.bold = True
+    hdr.paragraphs.runs.font.bold = True
+    hdr._tc.get_or_add_tcPr().append(parse_xml(r'<w:shd {} w:fill="E6E6E6"/>'.format(nsdecls('w'))))
+    hdr._tc.get_or_add_tcPr().append(parse_xml(r'<w:shd {} w:fill="E6E6E6"/>'.format(nsdecls('w'))))
     
     k_data = [
         ("1. Dimensi Profil Lulusan", data.get('dimensi_profil', '')),
@@ -127,7 +123,7 @@ dimensi_profil = st.text_area("1. Dimensi Profil Lulusan", st.session_state.prof
 tujuan_pembelajaran = st.text_area("2. Tujuan Pembelajaran", st.session_state.tujuan_ai if st.session_state.tujuan_ai else "Klik tombol AI di atas", height=100)
 praktik_pedagogis = st.text_area("3. Praktik Pedagogis", "Menggunakan pendekatan Problem-Based Learning (PBL) berbasis penyelidikan kasus nyata secara berkelompok.")
 lingkungan_belajar = st.text_area("4. Lingkungan Pembelajaran", "Fisik: Susunan meja berkelompok. Budaya: Saling menghargai argumen, ramah kesalahan, refleksi terbuka.")
-kemitraan_belajar = st.text_area("5. Kemitraan Pembelajaran", "Kolaborasi aktif antar peserta didik, guru sebagai fasilitator, dan didukung gawai cerdas.")
+kemitraan_belajar = st.text_area("5. Kemitraan Pembelajaran", "Kolaborasi aktif antar peserta didik, guru sebagai fasilitator, dan pemanfaatan gawai cerdas.")
 pemanfaatan_digital = st.text_area("6. Pemanfaatan Digital", "Platform kolaborasi online untuk pengerjaan tugas kelompok secara real-time.")
 langkah_pembelajaran = st.text_area("7. Langkah Pembelajaran Rinci", st.session_state.langkah_ai if st.session_state.langkah_ai else "Klik tombol AI di atas", height=150)
 asesmen_total = st.text_area("8. Asesmen Pembelajaran & LKM", st.session_state.asesmen_ai if st.session_state.asesmen_ai else "Klik tombol AI di atas", height=150)
