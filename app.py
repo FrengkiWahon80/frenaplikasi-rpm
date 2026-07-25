@@ -6,26 +6,20 @@ from docx.oxml.ns import nsdecls
 import io
 
 def panggil_ai_guru(topik, cp, komponen_rpp, instruksi_khusus):
-    # Mengambil kunci dan membersihkan karakter aneh/spasi secara paksa
     api_key_raw = st.secrets.get("GEMINI_API_KEY", "")
     api_key_clean = str(api_key_raw).strip().replace('"', '').replace("'", "")
-    
     if not api_key_clean or "AIzaSy" not in api_key_clean:
         return "⚠️ Eror: Kunci API AI belum dikonfigurasi dengan benar di Secrets Streamlit Anda."
-        
     try:
         import requests
         import json
-        # URL murni tanpa modifikasi parameter string agar tidak bisa dirusak variabel luar
         url = "https://googleapis.com"
         headers = {'Content-Type': 'application/json'}
         prompt = f"Topik: {topik}\nCP: {cp}\nKomponen: {komponen_rpp}\nInstruksi: {instruksi_khusus}"
         payload = {"contents": [{"parts": [{"text": prompt}]}]}
-        
-        # Menyertakan parameter key secara terpisah dan aman
         response = requests.post(url, params={"key": api_key_clean}, headers=headers, data=json.dumps(payload))
         res_json = response.json()
-        return res_json['candidates'][0]['content']['parts'][0]['text']
+        return res_json['candidates']['content']['parts']['text']
     except Exception as e:
         return f"⚠️ Gagal memuat AI otomatis. Silakan isi manual. (Detail: {str(e)})"
 
@@ -110,7 +104,7 @@ def buat_dokumen_rpm(data):
 
 st.set_page_config(page_title="Aplikasi Pembuat RPM Cerdas", layout="wide")
 st.title("🤖 Aplikasi Pembuat Rencana Pembelajaran Mendalam (RPM) Berbasis AI")
-st.write("Isi identitas, lalu gunakan bantuan AI untuk mengembangkan langkah kegiatan dan asesmen yang rinci.")
+st.write("Isi identitas, lalu gunakan bantuan AI untuk mengembangkan langkah kegiatan dan asesmen.")
 
 if "tujuan_ai" not in st.session_state: st.session_state.tujuan_ai = ""
 if "langkah_ai" not in st.session_state: st.session_state.langkah_ai = ""
@@ -177,3 +171,7 @@ try:
         label="📥 Unduh Dokumen RPM (.docx)",
         data=file_word_ready,
         file_name=f"RPM_Cerdas_{topik.replace(' ', '_')}.docx",
+        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    )
+except Exception as e:
+    st.error(f"Gagal menyiapkan tombol unduh. (Detail: {e})")
