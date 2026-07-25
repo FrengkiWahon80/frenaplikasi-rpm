@@ -6,76 +6,59 @@ from docx.oxml.ns import nsdecls
 import io
 
 def panggil_ai_guru(topik, cp, komponen_rpp, instruksi_khusus):
-    # JALUR PINTAS: Masukkan Kunci API Google Anda langsung di dalam tanda petik di bawah ini
-    api_key_ai = "AQ.Ab8RN6IMr275WriQ2p0dApoUebE3olwkxdHLuR5KghB8y_1lqw"
-    
-    if "Blabla" in api_key_ai or not api_key_ai:
-        return "⚠️ Eror: Anda belum memasukkan Kunci API Google Anda di dalam kode app.py baris nomor 10."
-        
+    api_key_ai = st.secrets.get("GEMINI_API_KEY", "")
+    if not api_key_ai:
+        return "⚠️ Kunci API kosong di menu Secrets Streamlit Anda."
     try:
-        import requests
-        import json
+        import requests, json
         url = "https://googleapis.com"
         headers = {'Content-Type': 'application/json'}
+        params = {"key": str(api_key_ai).strip().replace('"', '').replace("'", "")}
         prompt = f"Topik: {topik}\nCP: {cp}\nKomponen: {komponen_rpp}\nInstruksi: {instruksi_khusus}"
         payload = {"contents": [{"parts": [{"text": prompt}]}]}
-        
-        response = requests.post(url, params={"key": api_key_ai}, headers=headers, data=json.dumps(payload))
-        res_json = response.json()
-        return res_json['candidates']['content']['parts']['text']
+        response = requests.post(url, params=params, headers=headers, data=json.dumps(payload))
+        return response.json()['candidates']['content']['parts']['text']
     except Exception as e:
-        return f"⚠️ Gagal memuat AI otomatis. Silakan isi manual. (Detail: {str(e)})"
+        return f"⚠️ Gagal memuat AI otomatis. (Detail: {str(e)})"
 
 def buat_dokumen_rpm(data):
     doc = Document()
-    for section in doc.sections:
-        section.top_margin = Inches(1)
-        section.bottom_margin = Inches(1)
-        section.left_margin = Inches(1)
-        section.right_margin = Inches(1)
-    style = doc.styles['Normal']
-    font = style.font
-    font.name = 'Arial'
-    font.size = Pt(11)
-    title = doc.add_paragraph()
-    title_run = title.add_run("RENCANA PEMBELAJARAN MENDALAM (RPM)")
-    title_run.bold = True
-    title_run.font.size = Pt(14)
-    title.alignment = 1
+    for s in doc.sections:
+        s.top_margin = s.bottom_margin = s.left_margin = s.right_margin = Inches(1)
+    doc.styles['Normal'].font.name = 'Arial'
+    doc.styles['Normal'].font.size = Pt(11)
+    
+    t = doc.add_paragraph()
+    tr = t.add_run("RENCANA PEMBELAJARAN MENDALAM (RPM)")
+    tr.bold = True; tr.font.size = Pt(14); t.alignment = 1
     doc.add_paragraph()
+    
     doc.add_heading("I. IDENTITAS DAN VALIDASI", level=2)
-    table_identitas = doc.add_table(rows=7, cols=2)
-    table_identitas.style = 'Table Grid'
-    identitas_labels = [
-        ("Nama Sekolah", data.get('sekolah', '')), 
-        ("Nama Guru", data.get('guru', '')),
-        ("Mata Pelajaran", data.get('mapel', '')), 
-        ("Kelas / Semester", data.get('kelas_semester', '')),
-        ("Alokasi Waktu", data.get('alokasi_waktu', '')), 
-        ("Topik Utama", data.get('topik', '')),
+    ti = doc.add_table(rows=7, cols=2); ti.style = 'Table Grid'
+    lbls = [
+        ("Nama Sekolah", data.get('sekolah', '')), ("Nama Guru", data.get('guru', '')),
+        ("Mata Pelajaran", data.get('mapel', '')), ("Kelas / Semester", data.get('kelas_semester', '')),
+        ("Alokasi Waktu", data.get('alokasi_waktu', '')), ("Topik Utama", data.get('topik', '')),
         ("Capaian Pembelajaran (CP)", data.get('cp', ''))
     ]
-    for i, (label, value) in enumerate(identitas_labels):
-        row = table_identitas.rows[i]
-        row.cells.text = str(label)
-        row.cells.text = str(value)
-        row.cells.paragraphs.runs.font.bold = True
+    for i, (l, v) in enumerate(lbls):
+        ti.rows[i].cells[0].text = str(l)
+        ti.rows[i].cells[1].text = str(v)
+        ti.rows[i].cells[0].paragraphs[0].runs[0].font.bold = True
     doc.add_paragraph()
-    doc.add_heading("II. KOMKONEN INTI RPM MENDALAM", level=2)
-    table_inti = doc.add_table(rows=9, cols=2)
-    table_inti.style = 'Table Grid'
-    hdr_cells = table_inti.rows.cells
-    hdr_cells.text = 'Komponen RPM'
-    hdr_cells.text = 'Deskripsi / Detail Rencana Kerja (Hasil AI & Guru)'
-    hdr_cells.paragraphs.runs.font.bold = True
-    hdr_cells.paragraphs.runs.font.bold = True
-    shading_1 = parse_xml(r'<w:shd {} w:fill="E6E6E6"/>'.format(nsdecls('w')))
-    shading_2 = parse_xml(r'<w:shd {} w:fill="E6E6E6"/>'.format(nsdecls('w')))
-    hdr_cells._tc.get_or_add_tcPr().append(shading_1)
-    hdr_cells._tc.get_or_add_tcPr().append(shading_2)
-    komponen_data = [
-        ("1. Dimensi Profil Lulusan & Tujuan", data.get('dimensi_profil', '')),
-        ("2. Tujuan Pembelajaran", "Terintegrasi pada kolom nomor 1 di atas"),
+    
+    doc.add_heading("II. KOMPONEN INTI RPM MENDALAM", level=2)
+    t_inti = doc.add_table(rows=9, cols=2); t_inti.style = 'Table Grid'
+    hdr = t_inti.rows[0].cells
+    hdr[0].text = 'Komponen RPM'; hdr[1].text = 'Deskripsi / Detail Rencana Kerja'
+    hdr[0].paragraphs[0].runs[0].font.bold = True
+    hdr[1].paragraphs[0].runs[0].font.bold = True
+    hdr[0]._tc.get_or_add_tcPr().append(parse_xml(r'<w:shd {} w:fill="E6E6E6"/>'.format(nsdecls('w'))))
+    hdr[1]._tc.get_or_add_tcPr().append(parse_xml(r'<w:shd {} w:fill="E6E6E6"/>'.format(nsdecls('w'))))
+    
+    k_data = [
+        ("1. Dimensi Profil Lulusan", data.get('dimensi_profil', '')),
+        ("2. Tujuan Pembelajaran", data.get('tujuan_pembelajaran', '')),
         ("3. Praktik Pedagogis", data.get('praktik_pedagogis', '')),
         ("4. Lingkungan Pembelajaran", data.get('lingkungan_belajar', '')),
         ("5. Kemitraan Pembelajaran", data.get('kemitraan_belajar', '')),
@@ -83,32 +66,26 @@ def buat_dokumen_rpm(data):
         ("7. Langkah Pembelajaran Rinci", data.get('langkah_pembelajaran', '')),
         ("8. Asesmen & Lembar Kerja", data.get('asesmen_total', ''))
     ]
-    for i, (komponen, isi) in enumerate(komponen_data):
-        row = table_inti.rows[i+1]
-        row.cells.text = str(komponen)
-        row.cells.text = str(isi)
-        row.cells.paragraphs.runs.font.bold = True
-    doc.add_paragraph()
-    doc.add_paragraph()
+    for i, (k, isi) in enumerate(k_data):
+        t_inti.rows[i+1].cells[0].text = str(k)
+        t_inti.rows[i+1].cells[1].text = str(isi)
+        t_inti.rows[i+1].cells[0].paragraphs[0].runs[0].font.bold = True
+    doc.add_paragraph(); doc.add_paragraph()
+    
     doc.add_heading("III. PENGESAHAN", level=2)
-    table_ttd = doc.add_table(rows=1, cols=2)
-    for cell in table_ttd.rows.cells:
-        tcPr = cell._tc.get_or_add_tcPr()
-        tcBorders = parse_xml(r'<w:tcBorders {}><w:top w:val="none"/><w:left w:val="none"/><w:bottom w:val="none"/><w:right w:val="none"/></w:tcBorders>'.format(nsdecls('w')))
-        tcPr.append(tcBorders)
-    cell_kiri = table_ttd.rows.cells.paragraphs
-    cell_kiri.add_run(f"Mengetahui,\nKepala Sekolah {data.get('sekolah', '')}\n\n\n\n\n( _______________________ )")
-    cell_kanan = table_ttd.rows.cells.paragraphs
-    cell_kanan.add_run(f"Guru Mata Pelajaran,\n\n\n\n\n\n( {data.get('guru', '')} )")
-    file_stream = io.BytesIO()
-    doc.save(file_stream)
-    file_stream.seek(0)
-    return file_stream
+    ttd = doc.add_table(rows=1, cols=2)
+    for cell in ttd.rows[0].cells:
+        cell._tc.get_or_add_tcPr().append(parse_xml(r'<w:tcBorders {}><w:top w:val="none"/><w:left w:val="none"/><w:bottom w:val="none"/><w:right w:val="none"/></w:tcBorders>'.format(nsdecls('w'))))
+    ttd.rows[0].cells[0].paragraphs[0].add_run(f"Mengetahui,\nKepala Sekolah {data.get('sekolah', '')}\n\n\n\n\n( _______________________ )")
+    ttd.rows[0].cells[1].paragraphs[0].add_run(f"Guru Mata Pelajaran,\n\n\n\n\n\n( {data.get('guru', '')} )")
+    
+    stream = io.BytesIO(); doc.save(stream); stream.seek(0)
+    return stream
 
 st.set_page_config(page_title="Aplikasi Pembuat RPM Cerdas", layout="wide")
 st.title("🤖 Aplikasi Pembuat Rencana Pembelajaran Mendalam (RPM) Berbasis AI")
-st.write("Isi identitas, lalu gunakan bantuan AI untuk mengembangkan langkah kegiatan dan asesmen.")
 
+if "profil_ai" not in st.session_state: st.session_state.profil_ai = ""
 if "tujuan_ai" not in st.session_state: st.session_state.tujuan_ai = ""
 if "langkah_ai" not in st.session_state: st.session_state.langkah_ai = ""
 if "asesmen_ai" not in st.session_state: st.session_state.asesmen_ai = ""
@@ -122,59 +99,46 @@ with col1:
     kelas_semester = st.text_input("Kelas / Semester", "XI / Ganjil")
     alokasi_waktu = st.text_input("Alokasi Waktu", "2 x 45 Menit")
     topik = st.text_input("Topik Pembelajaran", "Mitigasi Perubahan Iklim")
-    cp = st.text_area("Capaian Pembelajaran (CP)", "Peserta didik mampu menganalisis fenomena perubahan iklim global, mengevaluasi dampaknya terhadap ekosistem lokal, dan menciptakan solusi praktis berbasis komunitas.")
+    cp = st.text_area("Capaian Pembelajaran (CP)", "Peserta didik mampu menganalisis fenomena perubahan iklim global...")
 
 with col2:
     st.subheader("II. Tombol Generator Cerdas AI")
-    st.info("💡 Ketik Topik & CP di sebelah kiri terlebih dahulu, lalu klik tombol AI di bawah ini.")
-    if st.button("✨ Detailing Tujuan Pembelajaran & Profil (AI)"):
-        with st.spinner("AI merumuskan tujuan..."):
-            instruksi = "Buat profil lulusan abad 21 dan tujuan pembelajaran yang berkesadaran, bermakna, menggembirakan."
-            st.session_state.tujuan_ai = panggil_ai_guru(topik, cp, "Tujuan & Profil", instruksi)
+    if st.button("✨ 1 & 2. Rumuskan Profil Lulusan & Tujuan (AI)"):
+        with st.spinner("AI memproses..."):
+            st.session_state.profil_ai = panggil_ai_guru(topik, cp, "Dimensi Profil Lulusan", "Rincikan Keterampilan abad 21.")
+            st.session_state.tujuan_ai = panggil_ai_guru(topik, cp, "Tujuan Pembelajaran", "Rumuskan Tujuan Pembelajaran yang Berkesadaran, Bermakna, dan Menggembirakan.")
             st.rerun()
-    if st.button("🔥 Kembangkan Kegiatan Pembelajaran Mendalam (AI)"):
-        with st.spinner("AI merancang langkah kerja..."):
-            instruksi = "Buat langkah pembelajaran PBL sangat detail mencakup menit dan aksi nyata guru murid: Pembukaan, Inti (Penyelidikan & pemanfaatan teknologi digital), dan Penutup (Refleksi)."
-            st.session_state.langkah_ai = panggil_ai_guru(topik, cp, "Langkah Kerja", instruksi)
+    if st.button("🔥 7. Kembangkan Kegiatan Pembelajaran Rinci (AI)"):
+        with st.spinner("AI memproses..."):
+            st.session_state.langkah_ai = panggil_ai_guru(topik, cp, "Langkah Pembelajaran", "Buat tahapan proses PBL rinci per menit: Pembukaan, Inti, Penutup.")
             st.rerun()
-    if st.button("📊 Kembangkan Kriteria Asesmen & LKM Lengkap (AI)"):
-        with st.spinner("AI menyusun lembar kerja..."):
-            instruksi = "Buat instrumen asesmen lengkap: 1) Metode Formatif Sumatif. 2) Lembar Kerja Murid (LKM) studi kasus riil. 3) Rubrik penilaian skor 1-4."
-            st.session_state.asesmen_ai = panggil_ai_guru(topik, cp, "Asesmen & LKM", instruksi)
+    if st.button("📊 8. Buat Instrumen Asesmen & LKM Lengkap (AI)"):
+        with st.spinner("AI memproses..."):
+            st.session_state.asesmen_ai = panggil_ai_guru(topik, cp, "Asesmen & LKM", "Buat evaluasi Formatif Sumatif, Lembar Kerja Murid (LKM), dan Rubrik skor 1-4.")
             st.rerun()
 
 st.markdown("---")
 st.subheader("III. Peninjauan & Penyempurnaan Teks (Dapat Diedit Manual)")
-val_tujuan = st.session_state.tujuan_ai if st.session_state.tujuan_ai else "Klik tombol AI di atas..."
-val_langkah = st.session_state.langkah_ai if st.session_state.langkah_ai else "Klik tombol AI di atas..."
-val_asesmen = st.session_state.asesmen_ai if st.session_state.asesmen_ai else "Klik tombol AI di atas..."
-
-dimensi_profil = st.text_area("1 & 2. Dimensi Profil & Tujuan Pembelajaran (Hasil AI)", val_tujuan, height=150)
-praktik_pedagogis = st.text_area("3. Praktik Pedagogis", "Menggunakan pendekatan Problem-Based Learning (PBL) berbasis penyelidikan kasus nyata.")
-lingkungan_belajar = st.text_area("4. Lingkungan Pembelajaran", "Fisik: Meja berkelompok. Budaya: Kolaboratif, ramah kesalahan, aman berpendapat.")
-kemitraan_belajar = st.text_area("5. Kemitraan Pembelajaran", "Kolaborasi aktif antar peserta didik, guru sebagai fasilitator, dan pemanfaatan gawai cerdas.")
-pemanfaatan_digital = st.text_area("6. Pemanfaatan Digital", "Platform kolaborasi online untuk pengerjaan kelompok.")
-langkah_pembelajaran = st.text_area("7. Langkah Pembelajaran Rinci (Hasil AI)", val_langkah, height=200)
-asesmen_total = st.text_area("8. Asesmen, Rubrik & LKM (Hasil AI)", val_asesmen, height=200)
+dimensi_profil = st.text_area("1. Dimensi Profil Lulusan", st.session_state.profil_ai if st.session_state.profil_ai else "Klik tombol AI di atas", height=100)
+tujuan_pembelajaran = st.text_area("2. Tujuan Pembelajaran", st.session_state.tujuan_ai if st.session_state.tujuan_ai else "Klik tombol AI di atas", height=100)
+praktik_pedagogis = st.text_area("3. Praktik Pedagogis", "Menggunakan pendekatan Problem-Based Learning (PBL) berbasis penyelidikan kasus nyata secara berkelompok.")
+lingkungan_belajar = st.text_area("4. Lingkungan Pembelajaran", "Fisik: Susunan meja berkelompok. Budaya: Saling menghargai argumen, ramah kesalahan, refleksi terbuka.")
+kemitraan_belajar = st.text_area("5. Kemitraan Pembelajaran", "Kolaborasi aktif antar peserta didik, guru sebagai fasilitator, dan didukung gawai cerdas.")
+pemanfaatan_digital = st.text_area("6. Pemanfaatan Digital", "Platform kolaborasi online untuk pengerjaan tugas kelompok secara real-time.")
+langkah_pembelajaran = st.text_area("7. Langkah Pembelajaran Rinci", st.session_state.langkah_ai if st.session_state.langkah_ai else "Klik tombol AI di atas", height=150)
+asesmen_total = st.text_area("8. Asesmen Pembelajaran & LKM", st.session_state.asesmen_ai if st.session_state.asesmen_ai else "Klik tombol AI di atas", height=150)
 
 rpm_data = {
-    'sekolah': sekolah, 'guru': guru, 'mapel': mapel, 'kelas_semester': kelas_semester,
-    'alokasi_waktu': alokasi_waktu, 'topik': topik, 'cp': cp, 'dimensi_profil': dimensi_profil,
-    'praktik_pedagogis': praktik_pedagogis, 'lingkungan_belajar': lingkungan_belajar, 
-    'kemitraan_belajar': kemitraan_belajar, 'pemanfaatan_digital': pemanfaatan_digital, 
-    'langkah_pembelajaran': langkah_pembelajaran, 'asesmen_total': asesmen_total
+    'sekolah': sekolah, 'guru': guru, 'mapel': mapel, 'kelas_semester': kelas_semester, 'alokasi_waktu': alokasi_waktu,
+    'topik': topik, 'cp': cp, 'dimensi_profil': dimensi_profil, 'tujuan_pembelajaran': tujuan_pembelajaran,
+    'praktik_pedagogis': praktik_pedagogis, 'lingkungan_belajar': lingkungan_belajar, 'kemitraan_belajar': kemitraan_belajar,
+    'pemanfaatan_digital': pemanfataan_digital if 'pemanfataan_digital' in locals() else pemanfaatan_digital, 'langkah_pembelajaran': langkah_pembelajaran, 'asesmen_total': asesmen_total
 }
 
 st.markdown("---")
 st.subheader("IV. Finalisasi Dokumen RPP")
-st.write("Klik tombol di bawah ini untuk mengunduh hasil dokumen Word:")
 try:
     file_word_ready = buat_dokumen_rpm(rpm_data)
-    st.download_button(
-        label="📥 Unduh Dokumen RPM (.docx)",
-        data=file_word_ready,
-        file_name=f"RPM_Cerdas_{topik.replace(' ', '_')}.docx",
-        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-    )
+    st.download_button(label="📥 Unduh Dokumen RPM (.docx)", data=file_word_ready, file_name=f"RPM_Cerdas_{topik.replace(' ', '_')}.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 except Exception as e:
-    st.error(f"Gagal menyiapkan tombol unduh. (Detail: {e})")
+    st.error(f"⚠️ Gagal menyiapkan tombol unduh. (Detail: {e})")
