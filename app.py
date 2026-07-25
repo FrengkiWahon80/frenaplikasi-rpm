@@ -29,19 +29,23 @@ def buat_dokumen_rpm(data):
         section.bottom_margin = Inches(1)
         section.left_margin = Inches(1)
         section.right_margin = Inches(1)
+    
     style = doc.styles['Normal']
     font = style.font
     font.name = 'Arial'
     font.size = Pt(11)
+    
     title = doc.add_paragraph()
     title_run = title.add_run("RENCANA PEMBELAJARAN MENDALAM (RPM)")
     title_run.bold = True
     title_run.font.size = Pt(14)
     title.alignment = 1
     doc.add_paragraph()
+    
     doc.add_heading("I. IDENTITAS DAN VALIDASI", level=2)
     table_identitas = doc.add_table(rows=7, cols=2)
     table_identitas.style = 'Table Grid'
+    
     identitas_labels = [
         ("Nama Sekolah", data.get('sekolah', '')), 
         ("Nama Guru", data.get('guru', '')),
@@ -51,24 +55,30 @@ def buat_dokumen_rpm(data):
         ("Topik Utama", data.get('topik', '')),
         ("Capaian Pembelajaran (CP)", data.get('cp', ''))
     ]
+    
     for i, (label, value) in enumerate(identitas_labels):
         row = table_identitas.rows[i]
-        row.cells.text = str(label)
-        row.cells.text = str(value)
-        row.cells.paragraphs.runs.font.bold = True
+        row.cells[0].text = str(label)
+        row.cells[1].text = str(value)
+        row.cells[0].paragraphs[0].runs[0].font.bold = True
+        
     doc.add_paragraph()
+    
     doc.add_heading("II. KOMKONEN INTI RPM MENDALAM", level=2)
     table_inti = doc.add_table(rows=9, cols=2)
     table_inti.style = 'Table Grid'
-    hdr_cells = table_inti.rows.cells
-    hdr_cells.text = 'Komponen RPM'
-    hdr_cells.text = 'Deskripsi / Detail Rencana Kerja (Hasil AI & Guru)'
-    hdr_cells.paragraphs.runs.font.bold = True
-    hdr_cells.paragraphs.runs.font.bold = True
+    
+    hdr_cells = table_inti.rows[0].cells
+    hdr_cells[0].text = 'Komponen RPM'
+    hdr_cells[1].text = 'Deskripsi / Detail Rencana Kerja (Hasil AI & Guru)'
+    hdr_cells[0].paragraphs[0].runs[0].font.bold = True
+    hdr_cells[1].paragraphs[0].runs[0].font.bold = True
+    
     shading_1 = parse_xml(r'<w:shd {} w:fill="E6E6E6"/>'.format(nsdecls('w')))
     shading_2 = parse_xml(r'<w:shd {} w:fill="E6E6E6"/>'.format(nsdecls('w')))
-    hdr_cells._tc.get_or_add_tcPr().append(shading_1)
-    hdr_cells._tc.get_or_add_tcPr().append(shading_2)
+    hdr_cells[0]._tc.get_or_add_tcPr().append(shading_1)
+    hdr_cells[1]._tc.get_or_add_tcPr().append(shading_2)
+    
     komponen_data = [
         ("1. Dimensi Profil Lulusan & Tujuan", data.get('dimensi_profil', '')),
         ("2. Tujuan Pembelajaran", "Terintegrasi pada kolom nomor 1 di atas"),
@@ -79,24 +89,29 @@ def buat_dokumen_rpm(data):
         ("7. Langkah Pembelajaran Rinci", data.get('langkah_pembelajaran', '')),
         ("8. Asesmen & Lembar Kerja", data.get('asesmen_total', ''))
     ]
+    
     for i, (komponen, isi) in enumerate(komponen_data):
         row = table_inti.rows[i+1]
-        row.cells.text = str(komponen)
-        row.cells.text = str(isi)
-        row.cells.paragraphs.runs.font.bold = True
+        row.cells[0].text = str(komponen)
+        row.cells[1].text = str(isi)
+        row.cells[0].paragraphs[0].runs[0].font.bold = True
+        
     doc.add_paragraph()
     doc.add_paragraph()
+    
     doc.add_heading("III. PENGESAHAN", level=2)
     table_ttd = doc.add_table(rows=1, cols=2)
-    for row in table_ttd.rows:
-        for cell in row.cells:
-            tcPr = cell._tc.get_or_add_tcPr()
-            tcBorders = parse_xml(r'<w:tcBorders {}><w:top w:val="none"/><w:left w:val="none"/><w:bottom w:val="none"/><w:right w:val="none"/></w:tcBorders>'.format(nsdecls('w')))
-            tcPr.append(tcBorders)
-    cell_kiri = table_ttd.rows.cells.paragraphs
+    for cell in table_ttd.rows[0].cells:
+        tcPr = cell._tc.get_or_add_tcPr()
+        tcBorders = parse_xml(r'<w:tcBorders {}><w:top w:val="none"/><w:left w:val="none"/><w:bottom w:val="none"/><w:right w:val="none"/></w:tcBorders>'.format(nsdecls('w')))
+        tcPr.append(tcBorders)
+        
+    cell_kiri = table_ttd.rows[0].cells[0].paragraphs[0]
     cell_kiri.add_run(f"Mengetahui,\nKepala Sekolah {data.get('sekolah', '')}\n\n\n\n\n( _______________________ )")
-    cell_kanan = table_ttd.rows.cells.paragraphs
+    
+    cell_kanan = table_ttd.rows[0].cells[1].paragraphs[0]
     cell_kanan.add_run(f"Guru Mata Pelajaran,\n\n\n\n\n\n( {data.get('guru', '')} )")
+    
     file_stream = io.BytesIO()
     doc.save(file_stream)
     file_stream.seek(0)
