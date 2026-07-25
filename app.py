@@ -32,7 +32,7 @@ def panggil_ai_guru(topik, cp, komponen_rpp, instruksi_khusus):
         response = requests.post(url, headers=headers, data=json.dumps(payload))
         res_json = response.json()
         
-        return res_json['candidates'][0]['content']['parts'][0]['text']
+        return res_json['candidates']['content']['parts']['text']
     except Exception as e:
         return f"⚠️ Gagal memuat AI secara otomatis. Anda dapat mengisi kolom ini secara manual. (Detail Eror: {str(e)})"
 
@@ -76,9 +76,9 @@ def buat_dokumen_rpm(data):
     
     for i, (label, value) in enumerate(identitas_labels):
         row = table_identitas.rows[i]
-        row.cells[0].text = str(label)
-        row.cells[1].text = str(value)
-        row.cells[0].paragraphs[0].runs[0].font.bold = True
+        row.cells.text = str(label)
+        row.cells.text = str(value)
+        row.cells.paragraphs.runs.font.bold = True
         
     doc.add_paragraph()
 
@@ -86,16 +86,16 @@ def buat_dokumen_rpm(data):
     table_inti = doc.add_table(rows=9, cols=2)
     table_inti.style = 'Table Grid'
     
-    hdr_cells = table_inti.rows[0].cells
-    hdr_cells[0].text = 'Komponen RPM'
-    hdr_cells[1].text = 'Deskripsi / Detail Rencana Kerja (Hasil AI & Guru)'
-    hdr_cells[0].paragraphs[0].runs[0].font.bold = True
-    hdr_cells[1].paragraphs[0].runs[0].font.bold = True
+    hdr_cells = table_inti.rows.cells
+    hdr_cells.text = 'Komponen RPM'
+    hdr_cells.text = 'Deskripsi / Detail Rencana Kerja (Hasil AI & Guru)'
+    hdr_cells.paragraphs.runs.font.bold = True
+    hdr_cells.paragraphs.runs.font.bold = True
     
     shading_1 = parse_xml(r'<w:shd {} w:fill="E6E6E6"/>'.format(nsdecls('w')))
     shading_2 = parse_xml(r'<w:shd {} w:fill="E6E6E6"/>'.format(nsdecls('w')))
-    hdr_cells[0]._tc.get_or_add_tcPr().append(shading_1)
-    hdr_cells[1]._tc.get_or_add_tcPr().append(shading_2)
+    hdr_cells._tc.get_or_add_tcPr().append(shading_1)
+    hdr_cells._tc.get_or_add_tcPr().append(shading_2)
 
     komponen_data = [
         ("1. Dimensi Profil Lulusan & Tujuan", data.get('dimensi_profil', '')),
@@ -110,9 +110,9 @@ def buat_dokumen_rpm(data):
 
     for i, (komponen, isi) in enumerate(komponen_data):
         row = table_inti.rows[i+1]
-        row.cells[0].text = str(komponen)
-        row.cells[1].text = str(isi)
-        row.cells[0].paragraphs[0].runs[0].font.bold = True
+        row.cells.text = str(komponen)
+        row.cells.text = str(isi)
+        row.cells.paragraphs.runs.font.bold = True
 
     doc.add_paragraph()
     doc.add_paragraph()
@@ -125,10 +125,10 @@ def buat_dokumen_rpm(data):
             tcBorders = parse_xml(r'<w:tcBorders {}><w:top w:val="none"/><w:left w:val="none"/><w:bottom w:val="none"/><w:right w:val="none"/></w:tcBorders>'.format(nsdecls('w')))
             tcPr.append(tcBorders)
 
-    cell_kiri = table_ttd.rows[0].cells[0].paragraphs[0]
+    cell_kiri = table_ttd.rows.cells.paragraphs
     cell_kiri.add_run(f"Mengetahui,\nKepala Sekolah {data.get('sekolah', '')}\n\n\n\n\n( _______________________ )")
     
-    cell_kanan = table_ttd.rows[0].cells[1].paragraphs[0]
+    cell_kanan = table_ttd.rows.cells.paragraphs
     cell_kanan.add_run(f"Guru Mata Pelajaran,\n\n\n\n\n\n( {data.get('guru', '')} )")
 
     file_stream = io.BytesIO()
@@ -198,4 +198,9 @@ pemanfaatan_digital = st.text_area("6. Pemanfaatan Digital", "Platform kolaboras
 langkah_pembelajaran = st.text_area("7. Langkah Pembelajaran Rinci (Hasil Pengembangan AI)", val_langkah, height=200)
 asesmen_total = st.text_area("8. Asesmen, Rubrik & Lembar Kerja Murid (Hasil Pengembangan AI)", val_asesmen, height=200)
 
+# Pemaketan data yang sudah dibersihkan
 rpm_data = {
+    'sekolah': sekolah,
+    'guru': guru,
+    'mapel': mapel,
+    'kelas_semester': kelas_semester,
