@@ -6,10 +6,12 @@ from docx.oxml.ns import nsdecls
 import io
 
 def panggil_ai_guru(topik, cp, komponen_rpp, instruksi_khusus):
-    api_key_raw = st.secrets.get("GEMINI_API_KEY", "")
-    api_key_clean = str(api_key_raw).strip().replace('"', '').replace("'", "")
-    if not api_key_clean or "AIzaSy" not in api_key_clean:
-        return "⚠️ Eror: Kunci API AI belum dikonfigurasi dengan benar di Secrets Streamlit Anda."
+    # JALUR PINTAS: Masukkan Kunci API Google Anda langsung di dalam tanda petik di bawah ini
+    api_key_ai = "AQ.Ab8RN6IMr275WriQ2p0dApoUebE3olwkxdHLuR5KghB8y_1lqw"
+    
+    if "Blabla" in api_key_ai or not api_key_ai:
+        return "⚠️ Eror: Anda belum memasukkan Kunci API Google Anda di dalam kode app.py baris nomor 10."
+        
     try:
         import requests
         import json
@@ -17,7 +19,8 @@ def panggil_ai_guru(topik, cp, komponen_rpp, instruksi_khusus):
         headers = {'Content-Type': 'application/json'}
         prompt = f"Topik: {topik}\nCP: {cp}\nKomponen: {komponen_rpp}\nInstruksi: {instruksi_khusus}"
         payload = {"contents": [{"parts": [{"text": prompt}]}]}
-        response = requests.post(url, params={"key": api_key_clean}, headers=headers, data=json.dumps(payload))
+        
+        response = requests.post(url, params={"key": api_key_ai}, headers=headers, data=json.dumps(payload))
         res_json = response.json()
         return res_json['candidates']['content']['parts']['text']
     except Exception as e:
@@ -54,22 +57,22 @@ def buat_dokumen_rpm(data):
     ]
     for i, (label, value) in enumerate(identitas_labels):
         row = table_identitas.rows[i]
-        row.cells[0].text = str(label)
-        row.cells[1].text = str(value)
-        row.cells[0].paragraphs[0].runs[0].font.bold = True
+        row.cells.text = str(label)
+        row.cells.text = str(value)
+        row.cells.paragraphs.runs.font.bold = True
     doc.add_paragraph()
     doc.add_heading("II. KOMKONEN INTI RPM MENDALAM", level=2)
     table_inti = doc.add_table(rows=9, cols=2)
     table_inti.style = 'Table Grid'
-    hdr_cells = table_inti.rows[0].cells
-    hdr_cells[0].text = 'Komponen RPM'
-    hdr_cells[1].text = 'Deskripsi / Detail Rencana Kerja (Hasil AI & Guru)'
-    hdr_cells[0].paragraphs[0].runs[0].font.bold = True
-    hdr_cells[1].paragraphs[0].runs[0].font.bold = True
+    hdr_cells = table_inti.rows.cells
+    hdr_cells.text = 'Komponen RPM'
+    hdr_cells.text = 'Deskripsi / Detail Rencana Kerja (Hasil AI & Guru)'
+    hdr_cells.paragraphs.runs.font.bold = True
+    hdr_cells.paragraphs.runs.font.bold = True
     shading_1 = parse_xml(r'<w:shd {} w:fill="E6E6E6"/>'.format(nsdecls('w')))
     shading_2 = parse_xml(r'<w:shd {} w:fill="E6E6E6"/>'.format(nsdecls('w')))
-    hdr_cells[0]._tc.get_or_add_tcPr().append(shading_1)
-    hdr_cells[1]._tc.get_or_add_tcPr().append(shading_2)
+    hdr_cells._tc.get_or_add_tcPr().append(shading_1)
+    hdr_cells._tc.get_or_add_tcPr().append(shading_2)
     komponen_data = [
         ("1. Dimensi Profil Lulusan & Tujuan", data.get('dimensi_profil', '')),
         ("2. Tujuan Pembelajaran", "Terintegrasi pada kolom nomor 1 di atas"),
@@ -82,20 +85,20 @@ def buat_dokumen_rpm(data):
     ]
     for i, (komponen, isi) in enumerate(komponen_data):
         row = table_inti.rows[i+1]
-        row.cells[0].text = str(komponen)
-        row.cells[1].text = str(isi)
-        row.cells[0].paragraphs[0].runs[0].font.bold = True
+        row.cells.text = str(komponen)
+        row.cells.text = str(isi)
+        row.cells.paragraphs.runs.font.bold = True
     doc.add_paragraph()
     doc.add_paragraph()
     doc.add_heading("III. PENGESAHAN", level=2)
     table_ttd = doc.add_table(rows=1, cols=2)
-    for cell in table_ttd.rows[0].cells:
+    for cell in table_ttd.rows.cells:
         tcPr = cell._tc.get_or_add_tcPr()
         tcBorders = parse_xml(r'<w:tcBorders {}><w:top w:val="none"/><w:left w:val="none"/><w:bottom w:val="none"/><w:right w:val="none"/></w:tcBorders>'.format(nsdecls('w')))
         tcPr.append(tcBorders)
-    cell_kiri = table_ttd.rows[0].cells[0].paragraphs[0]
+    cell_kiri = table_ttd.rows.cells.paragraphs
     cell_kiri.add_run(f"Mengetahui,\nKepala Sekolah {data.get('sekolah', '')}\n\n\n\n\n( _______________________ )")
-    cell_kanan = table_ttd.rows[0].cells[1].paragraphs[0]
+    cell_kanan = table_ttd.rows.cells.paragraphs
     cell_kanan.add_run(f"Guru Mata Pelajaran,\n\n\n\n\n\n( {data.get('guru', '')} )")
     file_stream = io.BytesIO()
     doc.save(file_stream)
