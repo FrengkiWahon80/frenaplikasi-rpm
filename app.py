@@ -6,17 +6,19 @@ from docx.oxml.ns import nsdecls
 import io
 
 def panggil_ai_guru(topik, cp, komponen_rpp, instruksi_khusus):
+    # MEMANGGIL DARI BRANKAS RAHASIA STREAMLIT (AMAN DARI SCANNING GITHUB)
     api_key_ai = st.secrets.get("GEMINI_API_KEY", "")
+    
     if not api_key_ai:
-        return "⚠️ Kunci API kosong di menu Secrets Streamlit Anda."
+        return "⚠️ Eror: Kunci API AI kosong di menu Secrets Streamlit Anda."
     try:
         import requests, json
         url = "https://googleapis.com"
-        headers = {'Content-Type': 'application/json'}
-        params = {"key": str(api_key_ai).strip().replace('"', '').replace("'", "")}
+        headers = {'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0'}
+        params = {"key": str(api_key_ai).strip()}
         prompt = f"Topik: {topik}\nCP: {cp}\nKomponen: {komponen_rpp}\nInstruksi: {instruksi_khusus}"
         payload = {"contents": [{"parts": [{"text": prompt}]}]}
-        response = requests.post(url, params=params, headers=headers, data=json.dumps(payload))
+        response = requests.post(url, params=params, headers=headers, json=payload)
         return response.json()['candidates']['content']['parts']['text']
     except Exception as e:
         return f"⚠️ Gagal memuat AI otomatis. (Detail: {str(e)})"
@@ -42,19 +44,21 @@ def buat_dokumen_rpm(data):
         ("Capaian Pembelajaran (CP)", data.get('cp', ''))
     ]
     for i, (l, v) in enumerate(lbls):
-        ti.rows[i].cells[0].text = str(l)
-        ti.rows[i].cells[1].text = str(v)
-        ti.rows[i].cells[0].paragraphs[0].runs[0].font.bold = True
+        ti.rows[i].cells.text = str(l)
+        ti.rows[i].cells.text = str(v)
+        ti.rows[i].cells.paragraphs.runs.font.bold = True
     doc.add_paragraph()
     
     doc.add_heading("II. KOMPONEN INTI RPM MENDALAM", level=2)
     t_inti = doc.add_table(rows=9, cols=2); t_inti.style = 'Table Grid'
-    hdr = t_inti.rows[0].cells
-    hdr[0].text = 'Komponen RPM'; hdr[1].text = 'Deskripsi / Detail Rencana Kerja'
-    hdr[0].paragraphs[0].runs[0].font.bold = True
-    hdr[1].paragraphs[0].runs[0].font.bold = True
-    hdr[0]._tc.get_or_add_tcPr().append(parse_xml(r'<w:shd {} w:fill="E6E6E6"/>'.format(nsdecls('w'))))
-    hdr[1]._tc.get_or_add_tcPr().append(parse_xml(r'<w:shd {} w:fill="E6E6E6"/>'.format(nsdecls('w'))))
+    hdr_cells_0 = t_inti.rows.cells
+    hdr_cells_1 = t_inti.rows.cells
+    hdr_cells_0.text = 'Komponen RPM'
+    hdr_cells_1.text = 'Deskripsi / Detail Rencana Kerja (Hasil AI & Guru)'
+    hdr_cells_0.paragraphs.runs.font.bold = True
+    hdr_cells_1.paragraphs.runs.font.bold = True
+    hdr_cells_0._tc.get_or_add_tcPr().append(parse_xml(r'<w:shd {} w:fill="E6E6E6"/>'.format(nsdecls('w'))))
+    hdr_cells_1._tc.get_or_add_tcPr().append(parse_xml(r'<w:shd {} w:fill="E6E6E6"/>'.format(nsdecls('w'))))
     
     k_data = [
         ("1. Dimensi Profil Lulusan", data.get('dimensi_profil', '')),
@@ -67,17 +71,17 @@ def buat_dokumen_rpm(data):
         ("8. Asesmen & Lembar Kerja", data.get('asesmen_total', ''))
     ]
     for i, (k, isi) in enumerate(k_data):
-        t_inti.rows[i+1].cells[0].text = str(k)
-        t_inti.rows[i+1].cells[1].text = str(isi)
-        t_inti.rows[i+1].cells[0].paragraphs[0].runs[0].font.bold = True
+        t_inti.rows[i+1].cells.text = str(k)
+        t_inti.rows[i+1].cells.text = str(isi)
+        t_inti.rows[i+1].cells.paragraphs.runs.font.bold = True
     doc.add_paragraph(); doc.add_paragraph()
     
     doc.add_heading("III. PENGESAHAN", level=2)
     ttd = doc.add_table(rows=1, cols=2)
-    for cell in ttd.rows[0].cells:
+    for cell in ttd.rows.cells:
         cell._tc.get_or_add_tcPr().append(parse_xml(r'<w:tcBorders {}><w:top w:val="none"/><w:left w:val="none"/><w:bottom w:val="none"/><w:right w:val="none"/></w:tcBorders>'.format(nsdecls('w'))))
-    ttd.rows[0].cells[0].paragraphs[0].add_run(f"Mengetahui,\nKepala Sekolah {data.get('sekolah', '')}\n\n\n\n\n( _______________________ )")
-    ttd.rows[0].cells[1].paragraphs[0].add_run(f"Guru Mata Pelajaran,\n\n\n\n\n\n( {data.get('guru', '')} )")
+    ttd.rows.cells.paragraphs.text = f"Mengetahui,\nKepala Sekolah {data.get('sekolah', '')}\n\n\n\n\n( _______________________ )"
+    ttd.rows.cells.paragraphs.text = f"Guru Mata Pelajaran,\n\n\n\n\n\n( {data.get('guru', '')} )"
     
     stream = io.BytesIO(); doc.save(stream); stream.seek(0)
     return stream
@@ -132,7 +136,7 @@ rpm_data = {
     'sekolah': sekolah, 'guru': guru, 'mapel': mapel, 'kelas_semester': kelas_semester, 'alokasi_waktu': alokasi_waktu,
     'topik': topik, 'cp': cp, 'dimensi_profil': dimensi_profil, 'tujuan_pembelajaran': tujuan_pembelajaran,
     'praktik_pedagogis': praktik_pedagogis, 'lingkungan_belajar': lingkungan_belajar, 'kemitraan_belajar': kemitraan_belajar,
-    'pemanfaatan_digital': pemanfataan_digital if 'pemanfataan_digital' in locals() else pemanfaatan_digital, 'langkah_pembelajaran': langkah_pembelajaran, 'asesmen_total': asesmen_total
+    'pemanfaatan_digital': pemanfaatan_digital, 'langkah_pembelajaran': langkah_pembelajaran, 'asesmen_total': asesmen_total
 }
 
 st.markdown("---")
