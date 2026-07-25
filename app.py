@@ -10,7 +10,6 @@ import io
 # FUNGSI INTEGRASI AI GOOGLE (GEMINI)
 # =====================================================================
 def panggil_ai_guru(topik, cp, komponen_rpp, instruksi_khusus):
-    # Mengambil API Key yang disimpan aman di Streamlit Secrets
     api_key_ai = st.secrets.get("GEMINI_API_KEY", None)
     
     if not api_key_ai:
@@ -82,27 +81,27 @@ def buat_dokumen_rpm(data):
     
     for i, (label, value) in enumerate(identitas_labels):
         row = table_identitas.rows[i]
-        row.cells[0].text = label
-        row.cells[1].text = value
-        row.cells[0].paragraphs[0].runs[0].font.bold = True
+        row.cells.text = label
+        row.cells.text = value
+        row.cells.paragraphs.runs.font.bold = True
         
     doc.add_paragraph()
 
     # Bagian II: 8 Struktur Utama Rencana Pembelajaran Mendalam
-    doc.add_heading("II. KOMKOMPONEN INTI RPM MENDALAM", level=2)
+    doc.add_heading("II. KOMPONEN INTI RPM MENDALAM", level=2)
     table_inti = doc.add_table(rows=9, cols=2)
     table_inti.style = 'Table Grid'
     
-    hdr_cells = table_inti.rows[0].cells
-    hdr_cells[0].text = 'Komponen RPM'
-    hdr_cells[1].text = 'Deskripsi / Detail Rencana Kerja (Hasil AI & Guru)'
-    hdr_cells[0].paragraphs[0].runs[0].font.bold = True
-    hdr_cells[1].paragraphs[0].runs[0].font.bold = True
+    hdr_cells = table_inti.rows.cells
+    hdr_cells.text = 'Komponen RPM'
+    hdr_cells.text = 'Deskripsi / Detail Rencana Kerja (Hasil AI & Guru)'
+    hdr_cells.paragraphs.runs.font.bold = True
+    hdr_cells.paragraphs.runs.font.bold = True
     
     shading_1 = parse_xml(r'<w:shd {} w:fill="E6E6E6"/>'.format(nsdecls('w')))
     shading_2 = parse_xml(r'<w:shd {} w:fill="E6E6E6"/>'.format(nsdecls('w')))
-    hdr_cells[0]._tc.get_or_add_tcPr().append(shading_1)
-    hdr_cells[1]._tc.get_or_add_tcPr().append(shading_2)
+    hdr_cells._tc.get_or_add_tcPr().append(shading_1)
+    hdr_cells._tc.get_or_add_tcPr().append(shading_2)
 
     komponen_data = [
         ("1. Dimensi Profil Lulusan", data['dimensi_profil']),
@@ -117,9 +116,9 @@ def buat_dokumen_rpm(data):
 
     for i, (komponen, isi) in enumerate(komponen_data):
         row = table_inti.rows[i+1]
-        row.cells[0].text = komponen
-        row.cells[1].text = isi
-        row.cells[0].paragraphs[0].runs[0].font.bold = True
+        row.cells.text = komponen
+        row.cells.text = isi
+        row.cells.paragraphs.runs.font.bold = True
 
     doc.add_paragraph()
     doc.add_paragraph()
@@ -133,10 +132,10 @@ def buat_dokumen_rpm(data):
             tcBorders = parse_xml(r'<w:tcBorders {}><w:top w:val="none"/><w:left w:val="none"/><w:bottom w:val="none"/><w:right w:val="none"/></w:tcBorders>'.format(nsdecls('w')))
             tcPr.append(tcBorders)
 
-    cell_kiri = table_ttd.rows[0].cells[0].paragraphs[0]
+    cell_kiri = table_ttd.rows.cells.paragraphs
     cell_kiri.add_run(f"Mengetahui,\nKepala Sekolah {data['sekolah']}\n\n\n\n\n( _______________________ )")
     
-    cell_kanan = table_ttd.rows[0].cells[1].paragraphs[0]
+    cell_kanan = table_ttd.rows.cells.paragraphs
     cell_kanan.add_run(f"Guru Mata Pelajaran,\n\n\n\n\n\n( {data['guru']} )")
 
     file_stream = io.BytesIO()
@@ -153,9 +152,9 @@ st.title("🤖 Aplikasi Pembuat Rencana Pembelajaran Mendalam (RPM) Berbasis AI"
 st.write("Isi identitas, lalu gunakan bantuan AI untuk mengembangkan langkah kegiatan dan asesmen yang rinci dan mendalam.")
 
 # State untuk menyimpan hasil AI agar tidak hilang saat halaman reload
+if "tujuan_ai" not in st.session_state: st.session_state.tujuan_ai = ""
 if "langkah_ai" not in st.session_state: st.session_state.langkah_ai = ""
 if "asesmen_ai" not in st.session_state: st.session_state.asesmen_ai = ""
-if "tujuan_ai" not in st.session_state: st.session_state.tujuan_ai = ""
 
 col1, col2 = st.columns(2)
 
@@ -191,8 +190,10 @@ with col2:
 st.markdown("---")
 st.subheader("III. Peninjauan & Penyempurnaan Teks (Dapat Diedit Manual)")
 
-dimensi_profil = st.text_area("1 & 2. Dimensi Profil & Tujuan Pembelajaran", st.session_state.tujuan_ai if st.session_state.tujuan_ai else "Klik tombol AI di atas untuk mengisi otomatis...")
+# Teks default jika AI belum dijalankan agar kotak input tidak kosong atau eror
+default_tujuan = st.session_state.tujuan_ai if st.session_state.tujuan_ai else "Bernalar Kritis dan Kreatif.\n\nTujuan: Melalui studi kasus, siswa secara sadar memahami dampak nyata lingkungan dengan suasana kelas yang aktif."
+
+dimensi_profil = st.text_area("1 & 2. Dimensi Profil & Tujuan Pembelajaran", default_tujuan, height=150)
 praktik_pedagogis = st.text_area("3. Praktik Pedagogis", "Menggunakan pendekatan Problem-Based Learning (PBL) berbasis penyelidikan kasus nyata.")
 lingkungan_belajar = st.text_area("4. Lingkungan Pembelajaran", "Fisik: Meja berkelompok fleksibel. Budaya: Kolaboratif, ramah kesalahan, aman berpendapat.")
 kemitraan_belajar = st.text_area("5. Kemitraan Pembelajaran", "Kolaborasi aktif antar peserta didik, guru sebagai fasilitator, dan pemanfaatan gawai cerdas.")
-pemanfaatan_digital = st.text_area("6. Pemanfaatan Digital", "Platform kolaborasi online (Google Workspace/Canva/Padlet) untuk pengerjaan kelompok.")
