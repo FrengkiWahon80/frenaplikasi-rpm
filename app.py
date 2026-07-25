@@ -6,21 +6,28 @@ from docx.oxml.ns import nsdecls
 import io
 
 def panggil_ai_guru(topik, cp, komponen_rpp, instruksi_khusus):
-    api_key_ai = st.secrets.get("GEMINI_API_KEY", None)
-    if not api_key_ai:
-        return "⚠️ Eror: Kunci API AI belum dikonfigurasi di Secrets Streamlit Anda."
+    # Mengambil kunci dan membersihkan karakter aneh/spasi secara paksa
+    api_key_raw = st.secrets.get("GEMINI_API_KEY", "")
+    api_key_clean = str(api_key_raw).strip().replace('"', '').replace("'", "")
+    
+    if not api_key_clean or "AIzaSy" not in api_key_clean:
+        return "⚠️ Eror: Kunci API AI belum dikonfigurasi dengan benar di Secrets Streamlit Anda."
+        
     try:
         import requests
         import json
-        url = f"https://googleapis.com{api_key_ai}"
+        # URL murni tanpa modifikasi parameter string agar tidak bisa dirusak variabel luar
+        url = "https://googleapis.com"
         headers = {'Content-Type': 'application/json'}
         prompt = f"Topik: {topik}\nCP: {cp}\nKomponen: {komponen_rpp}\nInstruksi: {instruksi_khusus}"
         payload = {"contents": [{"parts": [{"text": prompt}]}]}
-        response = requests.post(url, headers=headers, data=json.dumps(payload))
+        
+        # Menyertakan parameter key secara terpisah dan aman
+        response = requests.post(url, params={"key": api_key_clean}, headers=headers, data=json.dumps(payload))
         res_json = response.json()
-        return res_json['candidates']['content']['parts']['text']
+        return res_json['candidates'][0]['content']['parts'][0]['text']
     except Exception as e:
-        return f"⚠️ Isi manual. (Detail Eror: {str(e)})"
+        return f"⚠️ Gagal memuat AI otomatis. Silakan isi manual. (Detail: {str(e)})"
 
 def buat_dokumen_rpm(data):
     doc = Document()
@@ -29,23 +36,19 @@ def buat_dokumen_rpm(data):
         section.bottom_margin = Inches(1)
         section.left_margin = Inches(1)
         section.right_margin = Inches(1)
-    
     style = doc.styles['Normal']
     font = style.font
     font.name = 'Arial'
     font.size = Pt(11)
-    
     title = doc.add_paragraph()
     title_run = title.add_run("RENCANA PEMBELAJARAN MENDALAM (RPM)")
     title_run.bold = True
     title_run.font.size = Pt(14)
     title.alignment = 1
     doc.add_paragraph()
-    
     doc.add_heading("I. IDENTITAS DAN VALIDASI", level=2)
     table_identitas = doc.add_table(rows=7, cols=2)
     table_identitas.style = 'Table Grid'
-    
     identitas_labels = [
         ("Nama Sekolah", data.get('sekolah', '')), 
         ("Nama Guru", data.get('guru', '')),
@@ -55,30 +58,24 @@ def buat_dokumen_rpm(data):
         ("Topik Utama", data.get('topik', '')),
         ("Capaian Pembelajaran (CP)", data.get('cp', ''))
     ]
-    
     for i, (label, value) in enumerate(identitas_labels):
         row = table_identitas.rows[i]
         row.cells[0].text = str(label)
         row.cells[1].text = str(value)
         row.cells[0].paragraphs[0].runs[0].font.bold = True
-        
     doc.add_paragraph()
-    
     doc.add_heading("II. KOMKONEN INTI RPM MENDALAM", level=2)
     table_inti = doc.add_table(rows=9, cols=2)
     table_inti.style = 'Table Grid'
-    
     hdr_cells = table_inti.rows[0].cells
     hdr_cells[0].text = 'Komponen RPM'
     hdr_cells[1].text = 'Deskripsi / Detail Rencana Kerja (Hasil AI & Guru)'
     hdr_cells[0].paragraphs[0].runs[0].font.bold = True
     hdr_cells[1].paragraphs[0].runs[0].font.bold = True
-    
     shading_1 = parse_xml(r'<w:shd {} w:fill="E6E6E6"/>'.format(nsdecls('w')))
     shading_2 = parse_xml(r'<w:shd {} w:fill="E6E6E6"/>'.format(nsdecls('w')))
     hdr_cells[0]._tc.get_or_add_tcPr().append(shading_1)
     hdr_cells[1]._tc.get_or_add_tcPr().append(shading_2)
-    
     komponen_data = [
         ("1. Dimensi Profil Lulusan & Tujuan", data.get('dimensi_profil', '')),
         ("2. Tujuan Pembelajaran", "Terintegrasi pada kolom nomor 1 di atas"),
@@ -89,29 +86,23 @@ def buat_dokumen_rpm(data):
         ("7. Langkah Pembelajaran Rinci", data.get('langkah_pembelajaran', '')),
         ("8. Asesmen & Lembar Kerja", data.get('asesmen_total', ''))
     ]
-    
     for i, (komponen, isi) in enumerate(komponen_data):
         row = table_inti.rows[i+1]
         row.cells[0].text = str(komponen)
         row.cells[1].text = str(isi)
         row.cells[0].paragraphs[0].runs[0].font.bold = True
-        
     doc.add_paragraph()
     doc.add_paragraph()
-    
     doc.add_heading("III. PENGESAHAN", level=2)
     table_ttd = doc.add_table(rows=1, cols=2)
     for cell in table_ttd.rows[0].cells:
         tcPr = cell._tc.get_or_add_tcPr()
         tcBorders = parse_xml(r'<w:tcBorders {}><w:top w:val="none"/><w:left w:val="none"/><w:bottom w:val="none"/><w:right w:val="none"/></w:tcBorders>'.format(nsdecls('w')))
         tcPr.append(tcBorders)
-        
     cell_kiri = table_ttd.rows[0].cells[0].paragraphs[0]
     cell_kiri.add_run(f"Mengetahui,\nKepala Sekolah {data.get('sekolah', '')}\n\n\n\n\n( _______________________ )")
-    
     cell_kanan = table_ttd.rows[0].cells[1].paragraphs[0]
     cell_kanan.add_run(f"Guru Mata Pelajaran,\n\n\n\n\n\n( {data.get('guru', '')} )")
-    
     file_stream = io.BytesIO()
     doc.save(file_stream)
     file_stream.seek(0)
@@ -186,7 +177,3 @@ try:
         label="📥 Unduh Dokumen RPM (.docx)",
         data=file_word_ready,
         file_name=f"RPM_Cerdas_{topik.replace(' ', '_')}.docx",
-        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-    )
-except Exception as e:
-    st.error(f"Gagal menyiapkan tombol unduh. (Detail: {e})")
