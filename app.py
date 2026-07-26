@@ -6,22 +6,30 @@ from docx.oxml.ns import nsdecls
 import io
 
 def panggil_ai_guru(topik, cp, komponen_rpp, instruksi_khusus):
+    # Mengambil kunci API secara aman dari sistem internal Streamlit Secrets
+    api_key_ai = st.secrets.get("GEMINI_API_KEY", "")
+    
+    if not api_key_ai:
+        return "⚠️ Kunci API kosong. Mohon isi 'GEMINI_API_KEY' di menu Secrets Streamlit Cloud Anda."
+        
     try:
         import requests
-        # Jalur URL publik edukasi yang sudah diperbaiki total format penggabungannya
-        url_base = "https://vercel.app"
-        parameter_data = {
-            "topik": topik,
-            "cp": cp,
-            "komponen": komponen_rpp,
-            "instruksi": instruksi_khusus
-        }
-        # Menggunakan requests.get secara murni agar otomatis menyusun URL secara aman
-        response = requests.get(url_base, params=parameter_data, timeout=30)
+        import json
+        
+        # Alamat URL resmi Google Gemini 2.5 Flash yang sangat stabil
+        url = "https://googleapis.com"
+        headers = {'Content-Type': 'application/json'}
+        params = {"key": str(api_key_ai).strip()}
+        
+        prompt = f"Topik: {topik}\nCP: {cp}\nKomponen: {komponen_rpp}\nInstruksi: {instruksi_khusus}"
+        payload = {"contents": [{"parts": [{"text": prompt}]}]}
+        
+        response = requests.post(url, params=params, headers=headers, json=payload)
         res_json = response.json()
-        return res_json.get('text', "⚠️ AI sedang memproses data padat. Silakan klik tombol sekali lagi.")
+        
+        return res_json['candidates']['content']['parts']['text']
     except Exception as e:
-        return f"⚠️ Gagal memuat AI otomatis. Anda dapat mengetik di kolom ini secara manual. (Detail: {str(e)})"
+        return f"⚠️ Gagal memuat AI otomatis. Anda dapat mengetik manual. (Detail: {str(e)})"
 
 def buat_dokumen_rpm(data):
     doc = Document()
@@ -44,15 +52,13 @@ def buat_dokumen_rpm(data):
         ("Capaian Pembelajaran (CP)", data.get('cp', ''))
     ]
     for i, (l, v) in enumerate(lbls):
-        ti.rows[i].cells[0].text = str(l)
-        ti.rows[i].cells[1].text = str(v)
-        ti.rows[i].cells[0].paragraphs[0].runs[0].font.bold = True
+        ti.rows[i].cells.text = str(l)
+        ti.rows[i].cells.text = str(v)
+        ti.rows[i].cells.paragraphs.runs.font.bold = True
     doc.add_paragraph()
     
     doc.add_heading("II. KOMKONEN INTI RPM MENDALAM", level=2)
     t_inti = doc.add_table(rows=9, cols=2); t_inti.style = 'Table Grid'
-    
-    # Memperbaiki pengisian teks header sel secara mandiri agar bebas eror tuple
     t_inti.rows[0].cells[0].text = 'Komponen RPM'
     t_inti.rows[0].cells[1].text = 'Deskripsi / Detail Rencana Kerja (Hasil AI & Guru)'
     t_inti.rows[0].cells[0].paragraphs[0].runs[0].font.bold = True
@@ -103,7 +109,7 @@ with col1:
     kelas_semester = st.text_input("Kelas / Semester", "XI / Ganjil")
     alokasi_waktu = st.text_input("Alokasi Waktu", "2 x 45 Menit")
     topik = st.text_input("Topik Pembelajaran", "Kebebasan dan Tanggapan Iman")
-    cp = st.text_area("Capaian Pembelajaran (CP)", "Murid mampu menganalisis, mengevaluasi, dan mewujudkan imannya secara nyata dalam konteks kebebasan, hak-kewajiban, martabat manusia, pelestarian lingkungan, dan moderasi beragama.")
+    cp = st.text_area("Capaian Pembelajaran (CP)", "Murid mampu menganalisis, mengevaluasi, dan mewujudkan imannya secara nyata dalam konteks kebebasan...")
 
 with col2:
     st.subheader("II. Tombol Generator Cerdas AI")
