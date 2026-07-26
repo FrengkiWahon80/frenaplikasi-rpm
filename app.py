@@ -7,15 +7,21 @@ import io
 
 def panggil_ai_guru(topik, cp, komponen_rpp, instruksi_khusus):
     try:
-        import requests, json
-        # Menggunakan jalur koridor AI publik khusus pendidikan yang bebas hambatan kunci
-        url = "https://allorigins.win" + requests.utils.quote(f"https://vercel.app{topik}&cp={cp}&komponen={komponen_rpp}&instruksi={instruksi_khusus}")
-        response = requests.get(url, timeout=30)
+        import requests
+        # Jalur URL publik edukasi yang sudah diperbaiki total format penggabungannya
+        url_base = "https://vercel.app"
+        parameter_data = {
+            "topik": topik,
+            "cp": cp,
+            "komponen": komponen_rpp,
+            "instruksi": instruksi_khusus
+        }
+        # Menggunakan requests.get secara murni agar otomatis menyusun URL secara aman
+        response = requests.get(url_base, params=parameter_data, timeout=30)
         res_json = response.json()
-        data_isi = json.loads(res_json['contents'])
-        return data_isi.get('text', "⚠️ AI sedang sibuk. Silakan klik tombol sekali lagi.")
+        return res_json.get('text', "⚠️ AI sedang memproses data padat. Silakan klik tombol sekali lagi.")
     except Exception as e:
-        return f"⚠️ Koneksi AI dialihkan. Sila isi manual jika mendesak. (Detail: {str(e)})"
+        return f"⚠️ Gagal memuat AI otomatis. Anda dapat mengetik di kolom ini secara manual. (Detail: {str(e)})"
 
 def buat_dokumen_rpm(data):
     doc = Document()
@@ -43,10 +49,10 @@ def buat_dokumen_rpm(data):
         ti.rows[i].cells[0].paragraphs[0].runs[0].font.bold = True
     doc.add_paragraph()
     
-    doc.add_heading("II. KOMPONEN INTI RPM MENDALAM", level=2)
+    doc.add_heading("II. KOMKONEN INTI RPM MENDALAM", level=2)
     t_inti = doc.add_table(rows=9, cols=2); t_inti.style = 'Table Grid'
     
-    # Perbaikan pengisian header tabel inti secara individual agar tidak memicu eror 'tuple'
+    # Memperbaiki pengisian teks header sel secara mandiri agar bebas eror tuple
     t_inti.rows[0].cells[0].text = 'Komponen RPM'
     t_inti.rows[0].cells[1].text = 'Deskripsi / Detail Rencana Kerja (Hasil AI & Guru)'
     t_inti.rows[0].cells[0].paragraphs[0].runs[0].font.bold = True
@@ -72,16 +78,10 @@ def buat_dokumen_rpm(data):
     
     doc.add_heading("III. PENGESAHAN", level=2)
     ttd = doc.add_table(rows=1, cols=2)
-    
-    # Perbaikan mutlak pemanggilan sel tanda tangan per indeks kolom (0 dan 1) agar bebas dari eror
-    cell_kiri = ttd.rows[0].cells[0]
-    cell_kanan = ttd.rows[0].cells[1]
-    
-    cell_kiri._tc.get_or_add_tcPr().append(parse_xml(r'<w:tcBorders {}><w:top w:val="none"/><w:left w:val="none"/><w:bottom w:val="none"/><w:right w:val="none"/></w:tcBorders>'.format(nsdecls('w'))))
-    cell_kanan._tc.get_or_add_tcPr().append(parse_xml(r'<w:tcBorders {}><w:top w:val="none"/><w:left w:val="none"/><w:bottom w:val="none"/><w:right w:val="none"/></w:tcBorders>'.format(nsdecls('w'))))
-    
-    cell_kiri.paragraphs[0].text = f"Mengetahui,\nKepala Sekolah {data.get('sekolah', '')}\n\n\n\n\n( _______________________ )"
-    cell_kanan.paragraphs[0].text = f"Guru Mata Pelajaran,\n\n\n\n\n\n( {data.get('guru', '')} )"
+    for cell in ttd.rows[0].cells:
+        cell._tc.get_or_add_tcPr().append(parse_xml(r'<w:tcBorders {}><w:top w:val="none"/><w:left w:val="none"/><w:bottom w:val="none"/><w:right w:val="none"/></w:tcBorders>'.format(nsdecls('w'))))
+    ttd.rows[0].cells[0].paragraphs[0].text = f"Mengetahui,\nKepala Sekolah {data.get('sekolah', '')}\n\n\n\n\n( _______________________ )"
+    ttd.rows[0].cells[1].paragraphs[0].text = f"Guru Mata Pelajaran,\n\n\n\n\n\n( {data.get('guru', '')} )"
     
     stream = io.BytesIO(); doc.save(stream); stream.seek(0)
     return stream
@@ -99,11 +99,11 @@ with col1:
     st.subheader("I. Identitas Dasar")
     sekolah = st.text_input("Nama Sekolah", "SMA Negeri 1 Pembelajaran")
     guru = st.text_input("Nama Guru", "Nama Guru, S.Pd.")
-    mapel = st.text_input("Mata Pelajaran", "Informatika / Biologi")
+    mapel = st.text_input("Mata Pelajaran", "Agama Katolik / Budi Pekerti")
     kelas_semester = st.text_input("Kelas / Semester", "XI / Ganjil")
     alokasi_waktu = st.text_input("Alokasi Waktu", "2 x 45 Menit")
-    topik = st.text_input("Topik Pembelajaran", "Mitigasi Perubahan Iklim")
-    cp = st.text_area("Capaian Pembelajaran (CP)", "Peserta didik mampu menganalisis fenomena perubahan iklim global...")
+    topik = st.text_input("Topik Pembelajaran", "Kebebasan dan Tanggapan Iman")
+    cp = st.text_area("Capaian Pembelajaran (CP)", "Murid mampu menganalisis, mengevaluasi, dan mewujudkan imannya secara nyata dalam konteks kebebasan, hak-kewajiban, martabat manusia, pelestarian lingkungan, dan moderasi beragama.")
 
 with col2:
     st.subheader("II. Tombol Generator Cerdas AI")
@@ -128,7 +128,7 @@ dimensi_profil = st.text_area("1. Dimensi Profil Lulusan", st.session_state.prof
 tujuan_pembelajaran = st.text_area("2. Tujuan Pembelajaran", st.session_state.tujuan_ai if st.session_state.tujuan_ai else "Klik tombol AI di atas", height=100)
 praktik_pedagogis = st.text_area("3. Praktik Pedagogis", "Menggunakan pendekatan Problem-Based Learning (PBL) berbasis penyelidikan kasus nyata secara berkelompok.")
 lingkungan_belajar = st.text_area("4. Lingkungan Pembelajaran", "Fisik: Susunan meja berkelompok. Budaya: Saling menghargai argumen, ramah kesalahan, refleksi terbuka.")
-kemitraan_belajar = st.text_area("5. Kemitraan Pembelajaran", "Kolaborasi aktif antar peserta didik, guru sebagai fasilitator, dan didukung gawai cerdas.")
+kemitraan_belajar = st.text_area("5. Kemitraan Pembelajaran", "Kolaborasi aktif antar peserta didik, guru sebagai fasilitator, dan pemanfaatan gawai cerdas.")
 pemanfaatan_digital = st.text_area("6. Pemanfaatan Digital", "Platform kolaborasi online untuk pengerjaan tugas kelompok secara real-time.")
 langkah_pembelajaran = st.text_area("7. Langkah Pembelajaran Rinci", st.session_state.langkah_ai if st.session_state.langkah_ai else "Klik tombol AI di atas", height=150)
 asesmen_total = st.text_area("8. Asesmen Pembelajaran & LKM", st.session_state.asesmen_ai if st.session_state.asesmen_ai else "Klik tombol AI di atas", height=150)
