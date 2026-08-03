@@ -268,16 +268,27 @@ dan mudah diterapkan di kelas.
 
             if "error" in hasil:
 
-                pesan_error = hasil["error"].get(
-                    "message",
-                    ""
-                )
+    pesan_error = hasil["error"].get(
+        "message",
+        ""
+    )
 
 
-                return (
-                    "⚠️ Gemini Error:\n\n"
-                    + pesan_error
-                )
+    if "quota" in pesan_error.lower():
+
+        return (
+            "⚠️ Kuota Gemini habis.\n\n"
+            "Solusi:\n"
+            "1. Gunakan API Key lain\n"
+            "2. Tunggu kuota diperbarui\n"
+            "3. Periksa paket Gemini API"
+        )
+
+
+    return (
+        "⚠️ Gemini Error:\n\n"
+        + pesan_error
+    )
 
 
 
