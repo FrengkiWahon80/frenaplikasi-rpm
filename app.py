@@ -9,7 +9,7 @@ from docx.shared import Inches, Pt
 
 
 def panggil_ai_guru(topik, cp, komponen_rpp, instruksi_khusus):
-    api_key_ai = st.secrets.get("GEMINI_API_KEY", "")
+    api_key_ai = st.secrets.get("AQ.Ab8RN6LilOtkvtOkwaqG8oXk8XYGQ16dp8SCmsyL8OYizC8Y7Q", "")
 
     if not api_key_ai:
         return "⚠️ Kunci API kosong. Mohon isi 'GEMINI_API_KEY' di menu Secrets Streamlit Cloud Anda."
