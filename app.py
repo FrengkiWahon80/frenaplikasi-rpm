@@ -14,7 +14,7 @@ def panggil_ai_guru(topik, cp, komponen_rpp, instruksi_khusus, api_key_ai):
 
     try:
         headers = {"Content-Type": "application/json"}
-        params = {"key": str(api_key_ai).strip()}
+        params = {"key": str(AQ.Ab8RN6LilOtkvtOkwaqG8oXk8XYGQ16dp8SCmsyL8OYizC8Y7Q).strip()}
         prompt = f"Topik: {topik}\nCP: {cp}\nKomponen: {komponen_rpp}\nInstruksi: {instruksi_khusus}"
         payload = {"contents": [{"parts": [{"text": prompt}]}]}
 
