@@ -13,25 +13,26 @@ def panggil_ai_guru(topik, cp, komponen_rpp, instruksi_khusus, api_key_ai):
         return "⚠️ Kunci API kosong. Mohon isi API Key pada sidebar atau 'GEMINI_API_KEY' di Secrets Streamlit Cloud Anda."
 
     try:
-        headers = {"Content-Type": "application/json"}
-        # MEMPERBAIKI BARIS INI: Menggunakan variabel api_key_ai
-        params = {"key": str(api_key_ai).strip()}
+        # PENTING: Pengiriman API Key menggunakan header 'x-goog-api-key'
+        headers = {
+            "Content-Type": "application/json",
+            "x-goog-api-key": str(api_key_ai).strip(),
+        }
 
         prompt = f"Topik: {topik}\nCP: {cp}\nKomponen: {komponen_rpp}\nInstruksi: {instruksi_khusus}"
         payload = {"contents": [{"parts": [{"text": prompt}]}]}
 
+        # Daftar model Gemini
         daftar_model = [
-            "gemini-2.0-flash",
             "gemini-1.5-flash",
             "gemini-1.5-flash-latest",
+            "gemini-2.0-flash",
         ]
 
         res_json = {}
         for model_name in daftar_model:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent"
-            response = requests.post(
-                url, params=params, headers=headers, json=payload
-            )
+            response = requests.post(url, headers=headers, json=payload)
             res_json = response.json()
 
             if response.status_code == 200 and "candidates" in res_json:
@@ -164,7 +165,7 @@ st.set_page_config(page_title="Aplikasi Pembuat RPM Cerdas", layout="wide")
 # --- SIDEBAR PENGATURAN API KEY ---
 with st.sidebar:
     st.header("🔑 Pengaturan API Key")
-    # Mengambil otomatis dari Streamlit Secrets jika ada, jika tidak kosong
+    # Mengambil otomatis dari Streamlit Secrets jika ada
     secret_key = st.secrets.get("GEMINI_API_KEY", "")
     api_key_input = st.text_input(
         "Gemini API Key",
