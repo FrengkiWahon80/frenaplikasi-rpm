@@ -8,11 +8,9 @@ from docx.oxml.ns import nsdecls
 from docx.shared import Inches, Pt
 
 
-def panggil_ai_guru(topik, cp, komponen_rpp, instruksi_khusus):
-    api_key_ai = st.secrets.get("AQ.Ab8RN6LilOtkvtOkwaqG8oXk8XYGQ16dp8SCmsyL8OYizC8Y7Q", "")
-
+def panggil_ai_guru(topik, cp, komponen_rpp, instruksi_khusus, api_key_ai):
     if not api_key_ai:
-        return "⚠️ Kunci API kosong. Mohon isi 'GEMINI_API_KEY' di menu Secrets Streamlit Cloud Anda."
+        return "⚠️ Kunci API kosong. Mohon isi API Key pada sidebar atau 'GEMINI_API_KEY' di Secrets Streamlit Cloud Anda."
 
     try:
         headers = {"Content-Type": "application/json"}
@@ -160,6 +158,19 @@ def buat_dokumen_rpm(data):
 
 # --- UI STREAMLIT ---
 st.set_page_config(page_title="Aplikasi Pembuat RPM Cerdas", layout="wide")
+
+# --- SIDEBAR PENGATURAN API KEY ---
+with st.sidebar:
+    st.header("🔑 Pengaturan API Key")
+    # Mengambil otomatis dari Streamlit Secrets jika ada, jika tidak kosong
+    secret_key = st.secrets.get("GEMINI_API_KEY", "")
+    api_key_input = st.text_input(
+        "Gemini API Key",
+        value=secret_key,
+        type="password",
+        help="Sistem membaca otomatis dari Secrets. Jika belum diisi di Secrets, Anda bisa menempelkannya di sini.",
+    )
+
 st.title(
     "🤖 Aplikasi Pembuat Rencana Pembelajaran Mendalam (RPM) Berbasis AI"
 )
@@ -199,12 +210,14 @@ with col2:
                 cp,
                 "Dimensi Profil Lulusan",
                 "Rincikan Keterampilan abad 21.",
+                api_key_input,
             )
             st.session_state.tujuan_ai = panggil_ai_guru(
                 topik,
                 cp,
                 "Tujuan Pembelajaran",
                 "Rumuskan Tujuan Pembelajaran yang Berkesadaran, Bermakna, dan Menggembirakan.",
+                api_key_input,
             )
             st.rerun()
     if st.button("🔥 7. Kembangkan Kegiatan Pembelajaran Rinci (AI)"):
@@ -214,6 +227,7 @@ with col2:
                 cp,
                 "Langkah Pembelajaran",
                 "Buat tahapan proses PBL rinci per menit: Pembukaan, Inti, Penutup.",
+                api_key_input,
             )
             st.rerun()
     if st.button("📊 8. Buat Instrumen Asesmen & LKM Lengkap (AI)"):
@@ -223,6 +237,7 @@ with col2:
                 cp,
                 "Asesmen & LKM",
                 "Buat evaluasi Formatif Sumatif, Lembar Kerja Murid (LKM), dan Rubrik skor 1-4.",
+                api_key_input,
             )
             st.rerun()
 
