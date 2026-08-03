@@ -1,362 +1,448 @@
 import io
-import json
 import requests
 import streamlit as st
+
 from docx import Document
+from docx.shared import Inches, Pt
 from docx.oxml import parse_xml
 from docx.oxml.ns import nsdecls
-from docx.shared import Inches, Pt
 
-# Coba memuat SDK resmi Google GenAI yang baru (direkomendasikan untuk API key berawalan AQ)
+# =====================================================
+# GOOGLE GEMINI SDK
+# =====================================================
+
 try:
     from google import genai
+
     HAS_GENAI = True
+
 except ImportError:
+
     HAS_GENAI = False
 
+APP_NAME = "RPM CERDAS AI"
 
+SUPPORTED_MODELS = [
+
+    "gemini-2.5-flash",
+
+]
+
+REQUEST_TIMEOUT = 120
+
+AI_STUDIO_URL = "https://aistudio.google.com/app/apikey"
 def panggil_ai_guru(topik, cp, komponen_rpp, instruksi_khusus, api_key_ai):
+
     if not api_key_ai:
-        return "⚠️ Kunci API kosong. Mohon isi API Key pada sidebar atau 'GEMINI_API_KEY' di Secrets Streamlit Cloud Anda."
+        return (
+            "⚠️ Kunci API kosong.\n\n"
+            f"Silakan buat API Key di:\n{AI_STUDIO_URL}"
+        )
 
     clean_key = str(api_key_ai).strip()
-    prompt = f"Topik: {topik}\nCP: {cp}\nKomponen: {komponen_rpp}\nInstruksi: {instruksi_khusus}"
 
-    # --- PENDEKATAN 1: Menggunakan SDK Resmi Google GenAI (Baru) ---
+    prompt = (
+        f"Topik: {topik}\n"
+        f"CP: {cp}\n"
+        f"Komponen RPM: {komponen_rpp}\n"
+        f"Instruksi: {instruksi_khusus}"
+    )
+
+    # =====================================================
+    # GOOGLE GENAI SDK
+    # =====================================================
+
     if HAS_GENAI:
+
         try:
-            # Inisialisasi client baru dengan kunci AQ
-            client = genai.Client(api_key=clean_key)
-            
-            # Menggunakan daftar model generasi terbaru (2.5) untuk menghindari error 404
-            daftar_model = [
-                "gemini-2.5-flash",
-                "gemini-2.5-flash-lite",
-            ]
-            terakhir_err = None
-            for model_name in daftar_model:
+
+            client = genai.Client(
+                api_key=clean_key
+            )
+
+            error_terakhir = ""
+
+            for model_name in SUPPORTED_MODELS:
+
                 try:
+
                     response = client.models.generate_content(
+
                         model=model_name,
+
                         contents=prompt,
+
                     )
-                    if response and response.text:
-                        return response.text
+
+                    if (
+                        response
+                        and hasattr(response, "text")
+                        and response.text
+                    ):
+
+                        return response.text.strip()
+
                 except Exception as e:
-                    terakhir_err = str(e)
+
+                    error_terakhir = str(e)
+
+                    print(
+                        f"[SDK] {model_name} gagal : {e}"
+                    )
+
                     continue
 
-            if terakhir_err:
-                return f"⚠️ Error dari Gemini SDK Baru: {terakhir_err}\n\n💡 Pastikan API Key dibuat via https://aistudio.google.com/app/apikey"
-        except Exception:
-            pass
+            if error_terakhir:
 
-    # --- PENDEKATAN 2: Fallback ke REST Requests (Telah Diperbaiki untuk Kunci AQ) ---
+                if "404" in error_terakhir:
+
+                    return (
+                        "⚠️ Model Gemini tidak tersedia.\n\n"
+                        "Silakan gunakan model terbaru."
+                    )
+
+                elif "429" in error_terakhir:
+
+                    return (
+                        "⚠️ Kuota Gemini telah habis.\n"
+                        "Silakan coba beberapa saat lagi."
+                    )
+
+                elif "401" in error_terakhir:
+
+                    return (
+                        "⚠️ API Key tidak valid."
+                    )
+
+                return error_terakhir
+
+        except Exception as e:
+
+            print(e)
+
+    # =====================================================
+    # REST API (CADANGAN)
+    # =====================================================
+
     try:
-        # Menggunakan header saja (tanpa "?key=" di URL) untuk mencegah error kredensial ganda
+
         headers = {
+
             "Content-Type": "application/json",
+
             "x-goog-api-key": clean_key,
+
         }
-        payload = {"contents": [{"parts": [{"text": prompt}]}]}
 
-        # Menggunakan daftar model generasi terbaru (2.5) untuk menghindari error 404
-        daftar_model = [
-            "gemini-2.5-flash",
-            "gemini-2.5-flash-lite",
-        ]
+        payload = {
 
-        res_json = {}
-        for model_name in daftar_model:
-            # Perbaikan: URL tidak lagi menyertakan query parameter "?key=..." agar tidak konflik dengan header
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent"
-            response = requests.post(url, headers=headers, json=payload)
-            res_json = response.json()
+            "contents": [
 
-            if response.status_code == 200 and "candidates" in res_json:
-                return res_json["candidates"][0]["content"]["parts"][0]["text"]
+                {
 
-        if "error" in res_json:
-            msg = res_json["error"].get("message", "Terjadi kesalahan")
-            return f"⚠️ Error dari API: {msg}\n\n💡 Keterangan: Pastikan API Key diambil dari https://aistudio.google.com/app/apikey (Bukan Google Cloud Console biasa)."
+                    "parts": [
 
-        return "⚠️ Respon AI tidak valid."
+                        {
+
+                            "text": prompt
+
+                        }
+
+                    ]
+
+                }
+
+            ]
+
+        }
+
+        error_api = ""
+
+        for model_name in SUPPORTED_MODELS:
+
+            url = (
+                "https://generativelanguage.googleapis.com"
+                f"/v1beta/models/{model_name}:generateContent"
+            )
+
+            response = requests.post(
+
+                url,
+
+                headers=headers,
+
+                json=payload,
+
+                timeout=REQUEST_TIMEOUT,
+
+            )
+
+            hasil = response.json()
+
+            if response.status_code == 200:
+
+                if (
+                    "candidates" in hasil
+                    and len(hasil["candidates"]) > 0
+                ):
+
+                    return hasil["candidates"][0]["content"]["parts"][0]["text"]
+
+            if "error" in hasil:
+
+                error_api = hasil["error"].get(
+                    "message",
+                    "Unknown Error",
+                )
+
+        return (
+            "⚠️ Gemini tidak dapat memberikan jawaban.\n\n"
+            + error_api
+        )
 
     except Exception as e:
-        return f"⚠️ Gagal memuat AI otomatis. Anda dapat mengetik manual. (Detail: {str(e)})"
 
+        return (
+            "⚠️ Tidak dapat terhubung ke Gemini.\n\n"
+            + str(e)
+        )
+        def buat_dokumen_rpm(data):
 
-def buat_dokumen_rpm(data):
     doc = Document()
-    for s in doc.sections:
-        s.top_margin = s.bottom_margin = s.left_margin = s.right_margin = (
-            Inches(1)
-        )
-    doc.styles["Normal"].font.name = "Arial"
-    doc.styles["Normal"].font.size = Pt(11)
 
-    t = doc.add_paragraph()
-    tr = t.add_run("RENCANA PEMBELAJARAN MENDALAM (RPM)")
-    tr.bold = True
-    tr.font.size = Pt(14)
-    t.alignment = 1
+    # =====================================================
+    # PENGATURAN HALAMAN
+    # =====================================================
+
+    for section in doc.sections:
+
+        section.top_margin = Inches(1)
+
+        section.bottom_margin = Inches(1)
+
+        section.left_margin = Inches(1)
+
+        section.right_margin = Inches(1)
+
+    style = doc.styles["Normal"]
+
+    style.font.name = "Arial"
+
+    style.font.size = Pt(11)
+
+    # =====================================================
+    # JUDUL
+    # =====================================================
+
+    judul = doc.add_heading("", level=0)
+
+    judul.alignment = 1
+
+    run = judul.add_run(
+        "RENCANA PEMBELAJARAN MENDALAM (RPM)"
+    )
+
+    run.bold = True
+
+    run.font.size = Pt(16)
+
     doc.add_paragraph()
 
-    doc.add_heading("I. IDENTITAS DAN VALIDASI", level=2)
-    ti = doc.add_table(rows=7, cols=2)
-    ti.style = "Table Grid"
-    lbls = [
+    # =====================================================
+    # IDENTITAS
+    # =====================================================
+
+    doc.add_heading(
+        "I. IDENTITAS PEMBELAJARAN",
+        level=2
+    )
+
+    tabel = doc.add_table(
+        rows=7,
+        cols=2
+    )
+
+    tabel.style = "Table Grid"
+
+    identitas = [
+
         ("Nama Sekolah", data.get("sekolah", "")),
+
         ("Nama Guru", data.get("guru", "")),
+
         ("Mata Pelajaran", data.get("mapel", "")),
+
         ("Kelas / Semester", data.get("kelas_semester", "")),
+
         ("Alokasi Waktu", data.get("alokasi_waktu", "")),
-        ("Topik Utama", data.get("topik", "")),
-        ("Capaian Pembelajaran (CP)", data.get("cp", "")),
+
+        ("Topik", data.get("topik", "")),
+
+        ("Capaian Pembelajaran", data.get("cp", "")),
+
     ]
 
-    for i, (l, v) in enumerate(lbls):
-        cell_lbl = ti.rows[i].cells[0]
-        cell_val = ti.rows[i].cells[1]
+    for i, (judul, isi) in enumerate(identitas):
 
-        cell_lbl.text = str(l)
-        cell_val.text = str(v)
+        tabel.rows[i].cells[0].text = judul
 
-        if cell_lbl.paragraphs[0].runs:
-            cell_lbl.paragraphs[0].runs[0].font.bold = True
+        tabel.rows[i].cells[1].text = str(isi)
+
+        tabel.rows[i].cells[0].paragraphs[0].runs[0].bold = True
 
     doc.add_paragraph()
 
-    doc.add_heading("II. KOMPONEN INTI RPM MENDALAM", level=2)
-    t_inti = doc.add_table(rows=9, cols=2)
-    t_inti.style = "Table Grid"
-    t_inti.rows[0].cells[0].text = "Komponen RPM"
-    t_inti.rows[0].cells[
-        1
-    ].text = "Deskripsi / Detail Rencana Kerja (Hasil AI & Guru)"
+    # =====================================================
+    # KOMPONEN RPM
+    # =====================================================
 
-    if t_inti.rows[0].cells[0].paragraphs[0].runs:
-        t_inti.rows[0].cells[0].paragraphs[0].runs[0].font.bold = True
-    if t_inti.rows[0].cells[1].paragraphs[0].runs:
-        t_inti.rows[0].cells[1].paragraphs[0].runs[0].font.bold = True
-
-    t_inti.rows[0].cells[0]._tc.get_or_add_tcPr().append(
-        parse_xml(r'<w:shd {} w:fill="E6E6E6"/>'.format(nsdecls("w")))
-    )
-    t_inti.rows[0].cells[1]._tc.get_or_add_tcPr().append(
-        parse_xml(r'<w:shd {} w:fill="E6E6E6"/>'.format(nsdecls("w")))
+    doc.add_heading(
+        "II. KOMPONEN RPM",
+        level=2
     )
 
-    k_data = [
-        ("1. Dimensi Profil Lulusan", data.get("dimensi_profil", "")),
-        ("2. Tujuan Pembelajaran", data.get("tujuan_pembelajaran", "")),
-        ("3. Praktik Pedagogis", data.get("praktik_pedagogis", "")),
-        ("4. Lingkungan Pembelajaran", data.get("lingkungan_belajar", "")),
-        ("5. Kemitraan Pembelajaran", data.get("kemitraan_belajar", "")),
-        ("6. Pemanfaatan Digital", data.get("pemanfaatan_digital", "")),
-        ("7. Langkah Pembelajaran Rinci", data.get("langkah_pembelajaran", "")),
-        ("8. Asesmen & Lembar Kerja", data.get("asesmen_total", "")),
+    komponen = [
+
+        (
+            "1. Dimensi Profil Lulusan",
+            data.get("dimensi_profil", "")
+        ),
+
+        (
+            "2. Tujuan Pembelajaran",
+            data.get("tujuan_pembelajaran", "")
+        ),
+
+        (
+            "3. Praktik Pedagogis",
+            data.get("praktik_pedagogis", "")
+        ),
+
+        (
+            "4. Lingkungan Pembelajaran",
+            data.get("lingkungan_belajar", "")
+        ),
+
+        (
+            "5. Kemitraan Pembelajaran",
+            data.get("kemitraan_belajar", "")
+        ),
+
+        (
+            "6. Pemanfaatan Digital",
+            data.get("pemanfaatan_digital", "")
+        ),
+
+        (
+            "7. Langkah Pembelajaran",
+            data.get("langkah_pembelajaran", "")
+        ),
+
+        (
+            "8. Asesmen Pembelajaran",
+            data.get("asesmen_total", "")
+        ),
+
     ]
 
-    for i, (k, isi) in enumerate(k_data):
-        cell_k = t_inti.rows[i + 1].cells[0]
-        cell_v = t_inti.rows[i + 1].cells[1]
+    tabel2 = doc.add_table(
+        rows=len(komponen) + 1,
+        cols=2
+    )
 
-        cell_k.text = str(k)
-        cell_v.text = str(isi)
+    tabel2.style = "Table Grid"
 
-        if cell_k.paragraphs[0].runs:
-            cell_k.paragraphs[0].runs[0].font.bold = True
+    tabel2.rows[0].cells[0].text = "Komponen"
 
-    doc.add_paragraph()
-    doc.add_paragraph()
+    tabel2.rows[0].cells[1].text = "Isi RPM"
 
-    doc.add_heading("III. PENGESAHAN", level=2)
-    ttd = doc.add_table(rows=1, cols=2)
-    for cell in ttd.rows[0].cells:
-        cell._tc.get_or_add_tcPr().append(
+    for c in tabel2.rows[0].cells:
+
+        c.paragraphs[0].runs[0].bold = True
+
+        c._tc.get_or_add_tcPr().append(
+
             parse_xml(
-                r'<w:tcBorders {}><w:top w:val="none"/><w:left w:val="none"/><w:bottom w:val="none"/><w:right w:val="none"/></w:tcBorders>'.format(
+
+                r'<w:shd {} w:fill="D9EAD3"/>'.format(
+
                     nsdecls("w")
+
                 )
+
             )
+
         )
-    ttd.rows[0].cells[
-        0
-    ].paragraphs[
-        0
-    ].text = f"Mengetahui,\nKepala Sekolah {data.get('sekolah', '')}\n\n\n\n\n( _______________________ )"
-    ttd.rows[0].cells[
-        1
-    ].paragraphs[
-        0
-    ].text = f"Guru Mata Pelajaran,\n\n\n\n\n\n( {data.get('guru', '')} )"
+
+    for i, (judul, isi) in enumerate(komponen):
+
+        tabel2.rows[i + 1].cells[0].text = judul
+
+        tabel2.rows[i + 1].cells[1].text = str(isi)
+
+        tabel2.rows[i + 1].cells[0].paragraphs[0].runs[0].bold = True
+
+    doc.add_paragraph()
+
+    # =====================================================
+    # PENGESAHAN
+    # =====================================================
+
+    doc.add_heading(
+        "III. PENGESAHAN",
+        level=2
+    )
+
+    tanda = doc.add_table(
+        rows=1,
+        cols=2
+    )
+
+    kiri = tanda.rows[0].cells[0]
+
+    kanan = tanda.rows[0].cells[1]
+
+    kiri.text = (
+        "Mengetahui,\n\n"
+        "Kepala Sekolah\n\n\n\n\n"
+        "(....................................)"
+    )
+
+    kanan.text = (
+        f"Guru Mata Pelajaran\n\n\n\n\n({data.get('guru','')})"
+    )
 
     stream = io.BytesIO()
+
     doc.save(stream)
+
     stream.seek(0)
+
     return stream
-
-
-# --- UI STREAMLIT ---
-st.set_page_config(page_title="Aplikasi Pembuat RPM Cerdas", layout="wide")
-
-# --- SIDEBAR PENGATURAN API KEY ---
-with st.sidebar:
-    st.header("🔑 Pengaturan API Key")
-    secret_key = st.secrets.get("GEMINI_API_KEY", "")
-    api_key_input = st.text_input(
-        "Gemini API Key",
-        value=secret_key,
-        type="password",
-        help="Pastikan Kunci API dibuat dari Google AI Studio (https://aistudio.google.com/app/apikey).",
-    )
-
-st.title(
-    "🤖 Aplikasi Pembuat Rencana Pembelajaran Mendalam (RPM) Berbasis AI"
-)
-
-if "profil_ai" not in st.session_state:
-    st.session_state.profil_ai = ""
-if "tujuan_ai" not in st.session_state:
-    st.session_state.tujuan_ai = ""
-if "langkah_ai" not in st.session_state:
-    st.session_state.langkah_ai = ""
-if "asesmen_ai" not in st.session_state:
-    st.session_state.asesmen_ai = ""
-
-col1, col2 = st.columns(2)
-with col1:
-    st.subheader("I. Identitas Dasar")
-    sekolah = st.text_input("Nama Sekolah", "SMA Negeri 1 Pembelajaran")
-    guru = st.text_input("Nama Guru", "Nama Guru, S.Pd.")
-    mapel = st.text_input("Mata Pelajaran", "Agama Katolik / Budi Pekerti")
-    kelas_semester = st.text_input("Kelas / Semester", "XI / Ganjil")
-    alokasi_waktu = st.text_input("Alokasi Waktu", "2 x 45 Menit")
-    topik = st.text_input("Topik Pembelajaran", "Kebebasan dan Tanggapan Iman")
-    cp = st.text_area(
-        "Capaian Pembelajaran (CP)",
-        "Murid mampu menganalisis, mengevaluasi, dan mewujudkan imannya secara nyata dalam konteks kebebasan...",
-    )
-
-with col2:
-    st.subheader("II. Tombol Generator Cerdas AI")
-    st.info(
-        "💡 Ketik Topik & CP di sebelah kiri terlebih dahulu, lalu klik tombol AI di bawah."
-    )
     if st.button("✨ 1 & 2. Rumuskan Profil Lulusan & Tujuan (AI)"):
-        with st.spinner("AI memproses..."):
-            st.session_state.profil_ai = panggil_ai_guru(
-                topik,
-                cp,
-                "Dimensi Profil Lulusan",
-                "Rincikan Keterampilan abad 21.",
-                api_key_input,
-            )
-            st.session_state.tujuan_ai = panggil_ai_guru(
-                topik,
-                cp,
-                "Tujuan Pembelajaran",
-                "Rumuskan Tujuan Pembelajaran yang Berkesadaran, Bermakna, dan Menggembirakan.",
-                api_key_input,
-            )
-            st.rerun()
-    if st.button("🔥 7. Kembangkan Kegiatan Pembelajaran Rinci (AI)"):
-        with st.spinner("AI memproses..."):
-            st.session_state.langkah_ai = panggil_ai_guru(
-                topik,
-                cp,
-                "Langkah Pembelajaran",
-                "Buat tahapan proses PBL rinci per menit: Pembukaan, Inti, Penutup.",
-                api_key_input,
-            )
-            st.rerun()
-    if st.button("📊 8. Buat Instrumen Asesmen & LKM Lengkap (AI)"):
-        with st.spinner("AI memproses..."):
-            st.session_state.asesmen_ai = panggil_ai_guru(
-                topik,
-                cp,
-                "Asesmen & LKM",
-                "Buat evaluasi Formatif Sumatif, Lembar Kerja Murid (LKM), dan Rubrik skor 1-4.",
-                api_key_input,
-            )
-            st.rerun()
 
-st.markdown("---")
-st.subheader("III. Peninjauan & Penyempurnaan Teks (Dapat Diedit Manual)")
-dimensi_profil = st.text_area(
-    "1. Dimensi Profil Lulusan",
-    st.session_state.profil_ai
-    if st.session_state.profil_ai
-    else "Klik tombol AI di atas",
-    height=100,
-)
-tujuan_pembelajaran = st.text_area(
-    "2. Tujuan Pembelajaran",
-    st.session_state.tujuan_ai
-    if st.session_state.tujuan_ai
-    else "Klik tombol AI di atas",
-    height=100,
-)
-praktik_pedagogis = st.text_area(
-    "3. Praktik Pedagogis",
-    "Menggunakan pendekatan Problem-Based Learning (PBL) berbasis penyelidikan kasus nyata secara berkelompok.",
-)
-lingkungan_belajar = st.text_area(
-    "4. Lingkungan Pembelajaran",
-    "Fisik: Susunan meja berkelompok. Budaya: Saling menghargai argumen, ramah kesalahan, refleksi terbuka.",
-)
-kemitraan_belajar = st.text_area(
-    "5. Kemitraan Pembelajaran",
-    "Kolaborasi aktif antar peserta didik, guru sebagai fasilitator, dan pemanfaatan gawai cerdas.",
-)
-pemanfaatan_digital = st.text_area(
-    "6. Pemanfaatan Digital",
-    "Platform kolaborasi online untuk pengerjaan tugas kelompok secara real-time.",
-)
-langkah_pembelajaran = st.text_area(
-    "7. Langkah Pembelajaran Rinci",
-    st.session_state.langkah_ai
-    if st.session_state.langkah_ai
-    else "Klik tombol AI di atas",
-    height=150,
-)
-asesmen_total = st.text_area(
-    "8. Asesmen Pembelajaran & LKM",
-    st.session_state.asesmen_ai
-    if st.session_state.asesmen_ai
-    else "Klik tombol AI di atas",
-    height=150,
-)
+    if not api_key_input.strip():
 
-rpm_data = {
-    "sekolah": sekolah,
-    "guru": guru,
-    "mapel": mapel,
-    "kelas_semester": kelas_semester,
-    "alokasi_waktu": alokasi_waktu,
-    "topik": topik,
-    "cp": cp,
-    "dimensi_profil": dimensi_profil,
-    "tujuan_pembelajaran": tujuan_pembelajaran,
-    "praktik_pedagogis": praktik_pedagogis,
-    "lingkungan_belajar": lingkungan_belajar,
-    "kemitraan_belajar": kemitraan_belajar,
-    "pemanfaatan_digital": pemanfaatan_digital,
-    "langkah_pembelajaran": langkah_pembelajaran,
-    "asesmen_total": asesmen_total,
-}
+        st.error("Silakan masukkan Gemini API Key terlebih dahulu.")
 
-st.markdown("---")
-st.subheader("IV. Finalisasi Dokumen RPP")
-try:
-    file_word_ready = buat_dokumen_rpm(rpm_data)
-    clean_topik = "".join([c if c.isalnum() else "_" for c in topik])
-    st.download_button(
-        label="📥 Unduh Dokumen RPM (.docx)",
-        data=file_word_ready,
-        file_name=f"RPM_Cerdas_{clean_topik}.docx",
-        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    )
-except Exception as e:
-    st.error(f"⚠️ Gagal menyiapkan tombol unduh. (Detail: {e})")
+        st.stop()
+
+    with st.spinner("AI sedang menyusun Profil Lulusan..."):
+
+        st.session_state.profil_ai = panggil_ai_guru(
+            topik,
+            cp,
+            "Dimensi Profil Lulusan",
+            "Rincikan keterampilan abad ke-21.",
+            api_key_input,
+        )
+
+        st.session_state.tujuan_ai = panggil_ai_guru(
+            topik,
+            cp,
+            "Tujuan Pembelajaran",
+            "Buat tujuan pembelajaran yang berkesadaran, bermakna, dan menggembirakan.",
+            api_key_input,
+        )
+
+    st.rerun()
