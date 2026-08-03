@@ -9,32 +9,40 @@ import io
 import requests
 import streamlit as st
 
+
 from docx import Document
 from docx.shared import Inches, Pt
-from docx.oxml import parse_xml
-from docx.oxml.ns import nsdecls
+
 
 
 # =====================================================
 # KONFIGURASI APLIKASI
 # =====================================================
 
+
 APP_NAME = "RPM CERDAS AI"
 
+
 SUPPORTED_MODELS = [
+
     "gemini-2.5-flash"
+
 ]
 
+
 REQUEST_TIMEOUT = 120
+
 
 AI_STUDIO_URL = (
     "https://aistudio.google.com/app/apikey"
 )
 
 
+
 # =====================================================
 # GOOGLE GEMINI SDK
 # =====================================================
+
 
 try:
 
@@ -49,48 +57,68 @@ except ImportError:
 
 
 
+
 # =====================================================
-# HALAMAN STREAMLIT
+# SETTING HALAMAN STREAMLIT
 # =====================================================
 
+
 st.set_page_config(
+
     page_title=APP_NAME,
+
     page_icon="📘",
+
     layout="wide"
+
 )
 
 
 
+
 # =====================================================
-# FUNGSI PANGGIL GEMINI AI
+# FUNGSI GEMINI AI
 # =====================================================
 
 
 def panggil_ai_guru(
+
     topik,
+
     cp,
-    komponen_rpp,
-    instruksi_khusus,
-    api_key_ai
+
+    komponen_rpm,
+
+    instruksi,
+
+    api_key
+
+
 ):
 
-    """
-    Menghubungkan RPM CERDAS AI
-    dengan Google Gemini
-    """
 
-    if not api_key_ai:
+    if not api_key:
+
 
         return (
+
             "⚠️ API Key Gemini belum dimasukkan.\n\n"
-            f"Silakan buat API Key di:\n{AI_STUDIO_URL}"
+
+            "Silakan masukkan API Key dari:\n"
+
+            f"{AI_STUDIO_URL}"
+
         )
 
 
-    clean_key = str(api_key_ai).strip()
+
+    clean_key = str(api_key).strip()
+
+
 
 
     prompt = f"""
+
 Anda adalah asisten ahli Kurikulum Merdeka.
 
 Buatkan komponen Rencana Pembelajaran Mendalam (RPM).
@@ -98,53 +126,77 @@ Buatkan komponen Rencana Pembelajaran Mendalam (RPM).
 Topik:
 {topik}
 
+
 Capaian Pembelajaran:
 {cp}
 
-Komponen yang dibuat:
-{komponen_rpp}
 
-Instruksi khusus:
-{instruksi_khusus}
+Komponen:
+{komponen_rpm}
 
-Gunakan bahasa Indonesia formal,
-praktis untuk guru SMP,
-dan mudah diterapkan di kelas.
+
+Instruksi:
+{instruksi}
+
+
+Gunakan bahasa Indonesia yang jelas,
+praktis, dan mudah diterapkan guru SMP.
+
 """
 
 
+
+
     # =================================================
-    # GOOGLE GENAI SDK TERBARU
+    # GOOGLE GENAI SDK
     # =================================================
+
 
     if HAS_GENAI:
 
+
         try:
 
+
             client = genai.Client(
+
                 api_key=clean_key
+
             )
+
 
 
             for model_name in SUPPORTED_MODELS:
 
 
+
                 try:
+
+
 
                     response = client.models.generate_content(
 
+
                         model=model_name,
 
+
                         contents=prompt
+
 
                     )
 
 
+
                     if (
+
                         response
+
                         and hasattr(response, "text")
+
                         and response.text
+
                     ):
+
 
                         return response.text.strip()
 
@@ -152,25 +204,58 @@ dan mudah diterapkan di kelas.
 
                 except Exception as e:
 
-                    error_sdk = str(e)
+
+                    pesan = str(e)
+
+
+
+                    if "429" in pesan or "quota" in pesan.lower():
+
+
+                        return (
+
+                            "⚠️ Kuota Gemini habis.\n\n"
+
+                            "Silakan:\n"
+
+                            "1. Gunakan API Key lain\n"
+
+                            "2. Tunggu kuota diperbarui\n"
+
+                            "3. Periksa paket Gemini API"
+
+                        )
+
+
 
                     print(
-                        "Gemini SDK Error:",
-                        error_sdk
+
+                        "Gemini SDK error:",
+
+                        pesan
+
                     )
+
 
 
         except Exception as e:
 
+
             print(
-                "SDK tidak aktif:",
+
+                "SDK Error:",
+
                 e
+
             )
 
 
 
+
+
+
     # =================================================
-    # CADANGAN REST API GEMINI
+    # REST API CADANGAN
     # =================================================
 
 
@@ -179,23 +264,34 @@ dan mudah diterapkan di kelas.
 
         headers = {
 
+
             "Content-Type":
+
             "application/json",
 
+
+
             "x-goog-api-key":
+
             clean_key
 
         }
 
 
 
+
         payload = {
 
-            "contents": [
+
+            "contents":
+
+            [
 
                 {
 
-                    "parts": [
+                    "parts":
+
+                    [
 
                         {
 
@@ -213,15 +309,16 @@ dan mudah diterapkan di kelas.
 
 
 
+
         for model_name in SUPPORTED_MODELS:
+
 
 
             url = (
 
                 "https://generativelanguage.googleapis.com"
 
-                f"/v1beta/models/"
-                f"{model_name}:generateContent"
+                f"/v1beta/models/{model_name}:generateContent"
 
             )
 
@@ -245,54 +342,93 @@ dan mudah diterapkan di kelas.
 
 
 
+
             if response.status_code == 200:
 
 
+
                 kandidat = hasil.get(
+
                     "candidates",
+
                     []
+
                 )
+
 
 
                 if kandidat:
 
+
                     return (
+
                         kandidat[0]
+
                         ["content"]
+
                         ["parts"]
+
                         [0]
+
                         ["text"]
+
                     )
 
 
 
-                    if "error" in hasil:
-
-            pesan_error = hasil["error"].get(
-                "message",
-                ""
-            )
 
 
-            if "quota" in pesan_error.lower():
+            if "error" in hasil:
 
-                return (
-                    "⚠️ Kuota Gemini habis.\n\n"
-                    "Solusi:\n"
-                    "1. Gunakan API Key lain\n"
-                    "2. Tunggu kuota diperbarui\n"
-                    "3. Periksa paket Gemini API"
+
+
+                pesan_error = hasil["error"].get(
+
+                    "message",
+
+                    ""
+
                 )
 
 
-            return (
-                "⚠️ Gemini Error:\n\n"
-                + pesan_error
-            )
+
+                if "quota" in pesan_error.lower():
+
+
+
+                    return (
+
+                        "⚠️ Kuota Gemini habis.\n\n"
+
+                        "Silakan gunakan API Key lain."
+
+                    )
+
+
+
+                if "401" in str(response.status_code):
+
+
+                    return (
+
+                        "⚠️ API Key Gemini tidak valid."
+
+                    )
+
+
+
+                return (
+
+                    "⚠️ Gemini Error:\n\n"
+
+                    + pesan_error
+
+                )
 
 
 
     except Exception as e:
+
 
 
         return (
@@ -305,13 +441,14 @@ dan mudah diterapkan di kelas.
 
 
 
+
     return (
 
         "⚠️ Gemini belum memberikan jawaban."
 
     )
     # =====================================================
-# TAMPILAN HEADER RPM CERDAS AI
+# HEADER APLIKASI
 # =====================================================
 
 
@@ -321,12 +458,15 @@ st.markdown(
     📘 RPM CERDAS AI
     </h1>
 
-    <h4 style="text-align:center;">
+    <p style="text-align:center;">
     Generator Rencana Pembelajaran Mendalam
-    Kurikulum Merdeka SMP
-    </h4>
+    Kurikulum Merdeka SMP Berbasis AI
+    </p>
+
     """,
+
     unsafe_allow_html=True
+
 )
 
 
@@ -336,13 +476,14 @@ st.divider()
 
 
 # =====================================================
-# INPUT GEMINI API KEY
+# INPUT API KEY GEMINI
 # =====================================================
 
 
 st.subheader(
-    "🔑 Koneksi Google Gemini AI"
+    "🔑 Koneksi Gemini AI"
 )
+
 
 
 api_key_input = st.text_input(
@@ -351,10 +492,7 @@ api_key_input = st.text_input(
 
     type="password",
 
-    help=(
-        "API Key digunakan untuk menghubungkan "
-        "aplikasi dengan Gemini AI."
-    )
+    placeholder="Tempel API Key Gemini di sini"
 
 )
 
@@ -362,14 +500,14 @@ api_key_input = st.text_input(
 
 st.caption(
 
-    "Belum punya API Key? "
-    "Buat gratis melalui Google AI Studio."
+    "API Key dapat dibuat melalui Google AI Studio."
 
 )
 
 
 
 st.divider()
+
 
 
 
@@ -379,12 +517,16 @@ st.divider()
 
 
 st.subheader(
-    "📚 Identitas Pembelajaran"
+
+    "🏫 Identitas Pembelajaran"
+
 )
 
 
 
+
 kolom1, kolom2 = st.columns(2)
+
 
 
 
@@ -400,11 +542,13 @@ with kolom1:
     )
 
 
+
     guru = st.text_input(
 
         "Nama Guru"
 
     )
+
 
 
     mapel = st.selectbox(
@@ -440,6 +584,7 @@ with kolom1:
     )
 
 
+
     kelas = st.selectbox(
 
         "Kelas",
@@ -455,6 +600,8 @@ with kolom1:
         ]
 
     )
+
+
 
 
 
@@ -476,13 +623,15 @@ with kolom2:
     )
 
 
-    tahun = st.text_input(
+
+    tahun_pelajaran = st.text_input(
 
         "Tahun Pelajaran",
 
         value="2026/2027"
 
     )
+
 
 
     alokasi_waktu = st.text_input(
@@ -492,6 +641,7 @@ with kolom2:
         value="2 x 40 Menit"
 
     )
+
 
 
     model_pembelajaran = st.selectbox(
@@ -516,20 +666,23 @@ with kolom2:
 
 
 
+
 st.divider()
 
 
 
+
 # =====================================================
-# DATA PEMBELAJARAN
+# INFORMASI MATERI
 # =====================================================
 
 
 st.subheader(
 
-    "🎯 Informasi Materi Pembelajaran"
+    "📚 Informasi Materi Pembelajaran"
 
 )
+
 
 
 
@@ -553,12 +706,12 @@ cp = st.text_area(
 
     "Capaian Pembelajaran (CP)",
 
-    height=130,
+    height=140,
 
     placeholder=(
 
-        "Masukkan CP sesuai fase "
-        "Kurikulum Merdeka..."
+        "Masukkan Capaian Pembelajaran "
+        "sesuai Kurikulum Merdeka..."
 
     )
 
@@ -570,7 +723,7 @@ karakteristik = st.text_area(
 
     "Karakteristik Peserta Didik (Opsional)",
 
-    height=90
+    height=100
 
 )
 
@@ -590,8 +743,8 @@ st.info(
 
     """
     💡 Tips:
-    Semakin lengkap data yang dimasukkan,
-    semakin sesuai RPM yang dibuat oleh AI.
+    Isi CP dan topik secara lengkap agar
+    hasil RPM AI lebih sesuai dengan kebutuhan kelas.
     """
 
 )
@@ -602,369 +755,15 @@ st.divider()
 
 
 
-# =====================================================
-# GENERATE BAGIAN AWAL RPM
-# =====================================================
 
+# =====================================================
+# GENERATE PROFIL DAN TUJUAN AWAL
+# =====================================================
 
 
 if st.button(
 
-    "🚀 GENERATE PROFIL LULUSAN & TUJUAN AI",
-
-    type="primary",
-
-    use_container_width=True
-
-):
-
-
-    if not api_key_input.strip():
-
-
-        st.error(
-
-            "Silakan masukkan Gemini API Key terlebih dahulu."
-
-        )
-
-
-        st.stop()
-
-
-
-    with st.spinner(
-
-        "AI sedang menyusun Profil Lulusan dan Tujuan Pembelajaran..."
-
-    ):
-
-
-
-        profil_ai = panggil_ai_guru(
-
-            topik,
-
-            cp,
-
-            "Dimensi Profil Lulusan",
-
-            (
-                "Buatkan dimensi profil lulusan "
-                "sesuai keterampilan abad 21."
-            ),
-
-            api_key_input
-
-        )
-
-
-
-        tujuan_ai = panggil_ai_guru(
-
-            topik,
-
-            cp,
-
-            "Tujuan Pembelajaran",
-
-            (
-                "Buat tujuan pembelajaran "
-                "yang berkesadaran, bermakna, "
-                "dan menggembirakan."
-            ),
-
-            api_key_input
-
-        )
-
-
-
-        st.session_state.profil_ai = profil_ai
-
-        st.session_state.tujuan_ai = tujuan_ai
-
-
-
-    st.success(
-
-        "Profil lulusan dan tujuan berhasil dibuat."
-
-    )
-    # =====================================================
-# GENERATOR KOMPONEN RPM LENGKAP
-# =====================================================
-
-
-def buat_semua_komponen_rpm(
-    topik,
-    cp,
-    mapel,
-    kelas,
-    model,
-    api_key
-):
-
-
-    hasil = {}
-
-
-
-    # ================================================
-    # 1. DIMENSI PROFIL LULUSAN
-    # ================================================
-
-
-    hasil["dimensi_profil"] = panggil_ai_guru(
-
-        topik,
-
-        cp,
-
-        "Dimensi Profil Lulusan",
-
-        """
-        Buatkan dimensi profil lulusan yang sesuai
-        dengan pembelajaran mendalam.
-        
-        Sertakan:
-        - keterampilan yang dikembangkan
-        - karakter peserta didik
-        - kemampuan abad 21
-        """,
-
-        api_key
-
-    )
-
-
-
-    # ================================================
-    # 2. TUJUAN PEMBELAJARAN
-    # ================================================
-
-
-    hasil["tujuan_pembelajaran"] = panggil_ai_guru(
-
-        topik,
-
-        cp,
-
-        "Tujuan Pembelajaran",
-
-        """
-        Buat tujuan pembelajaran yang:
-        - berkesadaran
-        - bermakna
-        - menggembirakan
-        
-        Gunakan format tujuan yang jelas
-        dan dapat diukur.
-        """,
-
-        api_key
-
-    )
-
-
-
-    # ================================================
-    # 3. PRAKTIK PEDAGOGIS
-    # ================================================
-
-
-    hasil["praktik_pedagogis"] = panggil_ai_guru(
-
-        topik,
-
-        cp,
-
-        "Praktik Pedagogis",
-
-        f"""
-        Gunakan model pembelajaran:
-        {model}
-        
-        Jelaskan pendekatan berbasis masalah
-        yang dilakukan guru dan peserta didik.
-        
-        Sertakan:
-        - kegiatan guru
-        - kegiatan peserta didik
-        - strategi pembelajaran aktif
-        """,
-
-        api_key
-
-    )
-
-
-
-    # ================================================
-    # 4. LINGKUNGAN PEMBELAJARAN
-    # ================================================
-
-
-    hasil["lingkungan_belajar"] = panggil_ai_guru(
-
-        topik,
-
-        cp,
-
-        "Lingkungan Pembelajaran",
-
-        """
-        Jelaskan lingkungan belajar yang mendukung:
-        
-        - fisik kelas
-        - budaya belajar positif
-        - suasana aman dan nyaman
-        - kolaborasi peserta didik
-        """,
-
-        api_key
-
-    )
-
-
-
-    # ================================================
-    # 5. KEMITRAAN PEMBELAJARAN
-    # ================================================
-
-
-    hasil["kemitraan_belajar"] = panggil_ai_guru(
-
-        topik,
-
-        cp,
-
-        "Kemitraan Pembelajaran",
-
-        """
-        Jelaskan bentuk kolaborasi:
-        
-        - guru
-        - peserta didik
-        - orang tua
-        - teknologi digital
-        
-        dalam mendukung pembelajaran.
-        """,
-
-        api_key
-
-    )
-
-
-
-    # ================================================
-    # 6. PEMANFAATAN DIGITAL
-    # ================================================
-
-
-    hasil["pemanfaatan_digital"] = panggil_ai_guru(
-
-        topik,
-
-        cp,
-
-        "Pemanfaatan Digital",
-
-        """
-        Jelaskan penggunaan teknologi digital
-        dalam pembelajaran.
-        
-        Berikan contoh:
-        - aplikasi
-        - media digital
-        - sumber belajar online
-        """,
-
-        api_key
-
-    )
-
-
-
-    # ================================================
-    # 7. LANGKAH PEMBELAJARAN
-    # ================================================
-
-
-    hasil["langkah_pembelajaran"] = panggil_ai_guru(
-
-        topik,
-
-        cp,
-
-        "Langkah Pembelajaran",
-
-        """
-        Susun langkah pembelajaran lengkap:
-
-        A. Pendahuluan
-        B. Kegiatan Inti
-        C. Penutup
-
-        Gunakan pendekatan pembelajaran mendalam.
-        Sertakan aktivitas guru dan peserta didik.
-        """,
-
-        api_key
-
-    )
-
-
-
-    # ================================================
-    # 8. ASESMEN PEMBELAJARAN
-    # ================================================
-
-
-    hasil["asesmen_total"] = panggil_ai_guru(
-
-        topik,
-
-        cp,
-
-        "Asesmen Pembelajaran",
-
-        """
-        Buat asesmen lengkap:
-
-        1. Asesmen diagnostik
-        2. Asesmen formatif
-        3. Asesmen sumatif
-
-        Sertakan:
-        - teknik penilaian
-        - instrumen
-        - indikator keberhasilan
-        """,
-
-        api_key
-
-    )
-
-
-    return hasil
-
-
-
-
-
-# =====================================================
-# TOMBOL GENERATE RPM LENGKAP
-# =====================================================
-
-
-st.divider()
-
-
-if st.button(
-
-    "📘 GENERATE RPM LENGKAP DENGAN AI",
+    "✨ BUAT PROFIL LULUSAN & TUJUAN AI",
 
     type="primary",
 
@@ -982,15 +781,375 @@ if st.button(
 
         )
 
+
         st.stop()
 
 
 
     with st.spinner(
 
-        "AI sedang menyusun RPM lengkap..."
+        "AI sedang membuat Profil Lulusan dan Tujuan..."
 
     ):
+
+
+
+        profil_ai = panggil_ai_guru(
+
+            topik,
+
+            cp,
+
+            "Dimensi Profil Lulusan",
+
+            """
+            Buatkan dimensi profil lulusan.
+            Sesuaikan dengan keterampilan abad 21,
+            karakter peserta didik,
+            dan pembelajaran mendalam.
+            """,
+
+            api_key_input
+
+        )
+
+
+
+        tujuan_ai = panggil_ai_guru(
+
+            topik,
+
+            cp,
+
+            "Tujuan Pembelajaran",
+
+            """
+            Buat tujuan pembelajaran yang:
+            - berkesadaran
+            - bermakna
+            - menggembirakan
+            - dapat diukur
+            """,
+
+            api_key_input
+
+        )
+
+
+
+        st.session_state.profil_ai = profil_ai
+
+        st.session_state.tujuan_ai = tujuan_ai
+
+
+
+    st.success(
+
+        "Profil dan tujuan berhasil dibuat."
+
+    )
+    # =====================================================
+# FUNGSI GENERATOR RPM LENGKAP
+# =====================================================
+
+
+def buat_semua_komponen_rpm(
+
+    topik,
+
+    cp,
+
+    mapel,
+
+    kelas,
+
+    model,
+
+    api_key
+
+):
+
+
+    hasil = {}
+
+
+
+    hasil["dimensi_profil"] = panggil_ai_guru(
+
+        topik,
+
+        cp,
+
+        "Dimensi Profil Lulusan",
+
+        """
+        Buatkan dimensi profil lulusan.
+
+        Jelaskan:
+        - karakter yang dikembangkan
+        - keterampilan abad 21
+        - kemampuan berpikir kritis
+        - kreativitas
+        - kolaborasi
+        - komunikasi
+        """,
+
+        api_key
+
+    )
+
+
+
+    hasil["tujuan_pembelajaran"] = panggil_ai_guru(
+
+        topik,
+
+        cp,
+
+        "Tujuan Pembelajaran",
+
+        """
+        Buat tujuan pembelajaran berdasarkan
+        prinsip pembelajaran mendalam:
+
+        - berkesadaran
+        - bermakna
+        - menggembirakan
+
+        Gunakan kalimat yang dapat diukur.
+        """,
+
+        api_key
+
+    )
+
+
+
+    hasil["praktik_pedagogis"] = panggil_ai_guru(
+
+        topik,
+
+        cp,
+
+        "Praktik Pedagogis",
+
+        f"""
+        Gunakan model pembelajaran:
+
+        {model}
+
+        Jelaskan pendekatan pembelajaran
+        berbasis masalah.
+
+        Sertakan:
+        - aktivitas guru
+        - aktivitas peserta didik
+        - strategi pembelajaran aktif
+        """,
+
+        api_key
+
+    )
+
+
+
+    hasil["lingkungan_belajar"] = panggil_ai_guru(
+
+        topik,
+
+        cp,
+
+        "Lingkungan Pembelajaran",
+
+        """
+        Buat lingkungan pembelajaran yang mendukung:
+
+        - kelas aman dan nyaman
+        - budaya belajar positif
+        - ruang kolaborasi
+        - suasana menyenangkan
+        """,
+
+        api_key
+
+    )
+
+
+
+    hasil["kemitraan_belajar"] = panggil_ai_guru(
+
+        topik,
+
+        cp,
+
+        "Kemitraan Pembelajaran",
+
+        """
+        Jelaskan bentuk kemitraan:
+
+        - guru
+        - peserta didik
+        - orang tua
+        - komunitas
+        - teknologi digital
+
+        untuk mendukung pembelajaran.
+        """,
+
+        api_key
+
+    )
+
+
+
+    hasil["pemanfaatan_digital"] = panggil_ai_guru(
+
+        topik,
+
+        cp,
+
+        "Pemanfaatan Digital",
+
+        """
+        Jelaskan pemanfaatan teknologi digital
+        dalam pembelajaran.
+
+        Sertakan contoh:
+        - aplikasi
+        - media digital
+        - sumber belajar online
+        - AI pembelajaran
+        """,
+
+        api_key
+
+    )
+
+
+
+    hasil["langkah_pembelajaran"] = panggil_ai_guru(
+
+        topik,
+
+        cp,
+
+        "Langkah Pembelajaran",
+
+        """
+        Susun langkah pembelajaran lengkap:
+
+        A. Pendahuluan
+
+        B. Kegiatan Inti
+
+        C. Penutup
+
+
+        Gunakan pembelajaran mendalam.
+
+        Sertakan:
+        - aktivitas guru
+        - aktivitas peserta didik
+        - refleksi
+        """,
+
+        api_key
+
+    )
+
+
+
+    hasil["asesmen_total"] = panggil_ai_guru(
+
+        topik,
+
+        cp,
+
+        "Asesmen Pembelajaran",
+
+        """
+        Buat asesmen lengkap:
+
+        1. Diagnostik
+
+        2. Formatif
+
+        3. Sumatif
+
+
+        Sertakan:
+        - teknik penilaian
+        - instrumen
+        - indikator keberhasilan
+        """,
+
+        api_key
+
+    )
+
+
+
+    return hasil
+
+
+
+
+
+# =====================================================
+# TOMBOL GENERATE RPM LENGKAP
+# =====================================================
+
+
+st.divider()
+
+
+
+if st.button(
+
+    "🚀 GENERATE RPM LENGKAP AI",
+
+    type="primary",
+
+    use_container_width=True
+
+):
+
+
+    if not api_key_input.strip():
+
+
+        st.error(
+
+            "Masukkan Gemini API Key terlebih dahulu."
+
+        )
+
+
+        st.stop()
+
+
+
+    if not topik.strip():
+
+
+        st.warning(
+
+            "Silakan isi Topik Pembelajaran terlebih dahulu."
+
+        )
+
+
+        st.stop()
+
+
+
+
+    with st.spinner(
+
+        "AI sedang menyusun RPM lengkap... Mohon tunggu."
+
+    ):
+
 
 
         hasil_rpm = buat_semua_komponen_rpm(
@@ -1010,17 +1169,18 @@ if st.button(
         )
 
 
+
         st.session_state.hasil_rpm = hasil_rpm
 
 
 
     st.success(
 
-        "RPM lengkap berhasil dibuat oleh AI."
+        "✅ RPM lengkap berhasil dibuat."
 
     )
     # =====================================================
-# FUNGSI MEMBUAT DOKUMEN WORD RPM
+# FUNGSI MEMBUAT FILE WORD RPM
 # =====================================================
 
 
@@ -1038,6 +1198,7 @@ def buat_dokumen_rpm(data):
 
     for section in doc.sections:
 
+
         section.top_margin = Inches(1)
 
         section.bottom_margin = Inches(1)
@@ -1048,11 +1209,15 @@ def buat_dokumen_rpm(data):
 
 
 
+
     style = doc.styles["Normal"]
+
 
     style.font.name = "Arial"
 
+
     style.font.size = Pt(11)
+
 
 
 
@@ -1071,20 +1236,24 @@ def buat_dokumen_rpm(data):
     judul.alignment = 1
 
 
-    run = judul.add_run(
+
+    tulisan = judul.add_run(
 
         "RENCANA PEMBELAJARAN MENDALAM (RPM)"
 
     )
 
 
-    run.bold = True
+    tulisan.bold = True
 
-    run.font.size = Pt(16)
+
+    tulisan.font.size = Pt(16)
+
 
 
 
     doc.add_paragraph()
+
 
 
 
@@ -1118,40 +1287,26 @@ def buat_dokumen_rpm(data):
 
     identitas = [
 
-        (
-            "Nama Sekolah",
-            data.get("sekolah","")
-        ),
 
-        (
-            "Nama Guru",
-            data.get("guru","")
-        ),
+        ("Nama Sekolah", data.get("sekolah","")),
 
-        (
-            "Mata Pelajaran",
-            data.get("mapel","")
-        ),
 
-        (
-            "Kelas / Semester",
-            data.get("kelas_semester","")
-        ),
+        ("Nama Guru", data.get("guru","")),
 
-        (
-            "Alokasi Waktu",
-            data.get("alokasi_waktu","")
-        ),
 
-        (
-            "Topik",
-            data.get("topik","")
-        ),
+        ("Mata Pelajaran", data.get("mapel","")),
 
-        (
-            "Capaian Pembelajaran",
-            data.get("cp","")
-        )
+
+        ("Kelas / Semester", data.get("kelas_semester","")),
+
+
+        ("Alokasi Waktu", data.get("alokasi_waktu","")),
+
+
+        ("Topik", data.get("topik","")),
+
+
+        ("Capaian Pembelajaran", data.get("cp",""))
 
     ]
 
@@ -1161,6 +1316,7 @@ def buat_dokumen_rpm(data):
 
 
         tabel.rows[i].cells[0].text = judul
+
 
         tabel.rows[i].cells[1].text = str(isi)
 
@@ -1189,87 +1345,72 @@ def buat_dokumen_rpm(data):
 
     komponen = [
 
+
         (
             "1. Dimensi Profil Lulusan",
 
-            data.get(
-                "dimensi_profil",
-                ""
-            )
+            data.get("dimensi_profil","")
 
         ),
+
 
         (
             "2. Tujuan Pembelajaran",
 
-            data.get(
-                "tujuan_pembelajaran",
-                ""
-            )
+            data.get("tujuan_pembelajaran","")
 
         ),
+
 
         (
             "3. Praktik Pedagogis",
 
-            data.get(
-                "praktik_pedagogis",
-                ""
-            )
+            data.get("praktik_pedagogis","")
 
         ),
+
 
         (
             "4. Lingkungan Pembelajaran",
 
-            data.get(
-                "lingkungan_belajar",
-                ""
-            )
+            data.get("lingkungan_belajar","")
 
         ),
+
 
         (
             "5. Kemitraan Pembelajaran",
 
-            data.get(
-                "kemitraan_belajar",
-                ""
-            )
+            data.get("kemitraan_belajar","")
 
         ),
+
 
         (
             "6. Pemanfaatan Digital",
 
-            data.get(
-                "pemanfaatan_digital",
-                ""
-            )
+            data.get("pemanfaatan_digital","")
 
         ),
+
 
         (
             "7. Langkah Pembelajaran",
 
-            data.get(
-                "langkah_pembelajaran",
-                ""
-            )
+            data.get("langkah_pembelajaran","")
 
         ),
+
 
         (
             "8. Asesmen Pembelajaran",
 
-            data.get(
-                "asesmen_total",
-                ""
-            )
+            data.get("asesmen_total","")
 
         )
 
     ]
+
 
 
 
@@ -1330,7 +1471,7 @@ def buat_dokumen_rpm(data):
 
         "Kepala Sekolah\n\n\n\n"
 
-        "(............................)"
+        "(................................)"
 
     )
 
@@ -1348,17 +1489,18 @@ def buat_dokumen_rpm(data):
 
 
 
-    file_word = io.BytesIO()
+    file = io.BytesIO()
 
 
-    doc.save(file_word)
+    doc.save(file)
 
 
-    file_word.seek(0)
+    file.seek(0)
 
 
 
-    return file_word
+    return file
+
 
 
 
@@ -1389,7 +1531,9 @@ if "hasil_rpm" in st.session_state:
 
 
 
-    daftar_tampilan = [
+
+    daftar = [
+
 
         (
             "Dimensi Profil Lulusan",
@@ -1398,12 +1542,14 @@ if "hasil_rpm" in st.session_state:
 
         ),
 
+
         (
             "Tujuan Pembelajaran",
 
             "tujuan_pembelajaran"
 
         ),
+
 
         (
             "Praktik Pedagogis",
@@ -1412,12 +1558,14 @@ if "hasil_rpm" in st.session_state:
 
         ),
 
+
         (
             "Lingkungan Pembelajaran",
 
             "lingkungan_belajar"
 
         ),
+
 
         (
             "Kemitraan Pembelajaran",
@@ -1426,6 +1574,7 @@ if "hasil_rpm" in st.session_state:
 
         ),
 
+
         (
             "Pemanfaatan Digital",
 
@@ -1433,12 +1582,14 @@ if "hasil_rpm" in st.session_state:
 
         ),
 
+
         (
             "Langkah Pembelajaran",
 
             "langkah_pembelajaran"
 
         ),
+
 
         (
             "Asesmen Pembelajaran",
@@ -1451,16 +1602,11 @@ if "hasil_rpm" in st.session_state:
 
 
 
-    for judul, key in daftar_tampilan:
+
+    for judul, key in daftar:
 
 
-        with st.expander(
-
-            judul,
-
-            expanded=False
-
-        ):
+        with st.expander(judul):
 
 
             st.write(
@@ -1477,6 +1623,8 @@ if "hasil_rpm" in st.session_state:
 
 
 
+
+
     # ================================================
     # DOWNLOAD WORD
     # ================================================
@@ -1484,28 +1632,45 @@ if "hasil_rpm" in st.session_state:
 
     data_word = {
 
+
         "sekolah": sekolah,
+
 
         "guru": guru,
 
+
         "mapel": mapel,
 
+
         "kelas_semester":
-            f"{kelas} / {semester}",
+
+        f"{kelas} / {semester}",
+
+
 
         "alokasi_waktu":
-            alokasi_waktu,
+
+        alokasi_waktu,
+
+
 
         "topik":
-            topik,
+
+        topik,
+
+
 
         "cp":
-            cp,
+
+        cp,
+
 
 
         **hasil
 
     }
+
+
 
 
 
@@ -1517,33 +1682,37 @@ if "hasil_rpm" in st.session_state:
 
 
 
+
     st.download_button(
 
         label="⬇️ DOWNLOAD RPM WORD (.DOCX)",
 
+
         data=file_docx,
 
-        file_name=(
 
-            "RPM_CERDAS_AI.docx"
+        file_name="RPM_CERDAS_AI.docx",
 
-        ),
 
         mime=(
 
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            "application/vnd.openxmlformats-officedocument."
+
+            "wordprocessingml.document"
 
         ),
+
 
         use_container_width=True
 
     )
     # =====================================================
-# PENYEMPURNAAN TAMPILAN RPM CERDAS AI
+# CSS TAMPILAN PROFESIONAL
 # =====================================================
 
 
 st.markdown(
+
     """
     <style>
 
@@ -1566,7 +1735,7 @@ st.markdown(
     }
 
 
-    div[data-testid="stExpander"] {
+    [data-testid="stExpander"] {
 
         border-radius: 10px;
 
@@ -1574,49 +1743,46 @@ st.markdown(
 
 
     </style>
+
     """,
 
     unsafe_allow_html=True
+
 )
 
 
 
+
+
 # =====================================================
-# SIDEBAR INFORMASI APLIKASI
+# SIDEBAR INFORMASI
 # =====================================================
 
 
 with st.sidebar:
 
 
-    st.image(
-
-        "https://img.icons8.com/color/96/artificial-intelligence.png",
-
-        width=80
-
-    )
-
 
     st.title(
 
-        "RPM CERDAS AI"
+        "📘 RPM CERDAS AI"
 
     )
+
 
 
     st.write(
 
         """
-        Aplikasi pembuat
-        Rencana Pembelajaran Mendalam
-        berbasis AI.
+        Generator Rencana Pembelajaran Mendalam
+        untuk guru SMP Kurikulum Merdeka.
 
-        Dikembangkan untuk membantu
-        guru SMP Kurikulum Merdeka.
+        Membantu guru membuat RPM lebih cepat,
+        praktis, dan terstruktur dengan bantuan AI.
         """
 
     )
+
 
 
     st.divider()
@@ -1625,9 +1791,10 @@ with st.sidebar:
 
     st.subheader(
 
-        "📌 Cara Menggunakan"
+        "📌 Langkah Penggunaan"
 
     )
+
 
 
     st.markdown(
@@ -1639,13 +1806,14 @@ with st.sidebar:
 
         3. Masukkan Topik dan CP
 
-        4. Klik Generate RPM
+        4. Klik Generate RPM AI
 
-        5. Download file Word
+        5. Download Word
 
         """
 
     )
+
 
 
     st.divider()
@@ -1662,29 +1830,34 @@ with st.sidebar:
 
 
 
+
 # =====================================================
-# TOMBOL RESET DATA
+# RESET HASIL
 # =====================================================
+
 
 
 st.divider()
 
 
 
-kolom_reset1, kolom_reset2 = st.columns(2)
+kolom_a, kolom_b = st.columns(2)
 
 
 
-with kolom_reset1:
+
+with kolom_a:
+
 
 
     if st.button(
 
-        "🔄 RESET HASIL AI",
+        "🔄 HAPUS HASIL RPM",
 
         use_container_width=True
 
     ):
+
 
 
         if "hasil_rpm" in st.session_state:
@@ -1707,7 +1880,7 @@ with kolom_reset1:
 
         st.success(
 
-            "Data hasil AI berhasil dihapus."
+            "Hasil RPM berhasil dihapus."
 
         )
 
@@ -1718,14 +1891,16 @@ with kolom_reset1:
 
 
 
-with kolom_reset2:
+
+with kolom_b:
+
 
 
     st.info(
 
         """
-        💡 Gunakan API Key pribadi
-        masing-masing guru agar aman.
+        💡 Gunakan API Key masing-masing guru
+        agar kuota Gemini aman.
         """
 
     )
@@ -1734,9 +1909,12 @@ with kolom_reset2:
 
 
 
+
+
 # =====================================================
 # FOOTER
 # =====================================================
+
 
 
 st.divider()
@@ -1755,11 +1933,17 @@ st.markdown(
     <br>
 
     Generator Rencana Pembelajaran Mendalam
+
     <br>
 
     Kurikulum Merdeka SMP
 
+    <br><br>
+
+    Dibuat untuk membantu guru Indonesia
+
     </center>
+
     """,
 
     unsafe_allow_html=True
