@@ -14,14 +14,16 @@ def panggil_ai_guru(topik, cp, komponen_rpp, instruksi_khusus, api_key_ai):
 
     try:
         headers = {"Content-Type": "application/json"}
-        params = {"key": str(AQ.Ab8RN6LilOtkvtOkwaqG8oXk8XYGQ16dp8SCmsyL8OYizC8Y7Q).strip()}
+        # MEMPERBAIKI BARIS INI: Menggunakan variabel api_key_ai
+        params = {"key": str(api_key_ai).strip()}
+
         prompt = f"Topik: {topik}\nCP: {cp}\nKomponen: {komponen_rpp}\nInstruksi: {instruksi_khusus}"
         payload = {"contents": [{"parts": [{"text": prompt}]}]}
 
         daftar_model = [
             "gemini-2.0-flash",
+            "gemini-1.5-flash",
             "gemini-1.5-flash-latest",
-            "gemini-1.5-flash-002",
         ]
 
         res_json = {}
