@@ -27,9 +27,11 @@ def panggil_ai_guru(topik, cp, komponen_rpp, instruksi_khusus, api_key_ai):
         try:
             # Inisialisasi client baru dengan kunci AQ
             client = genai.Client(api_key=clean_key)
+            
+            # Menggunakan daftar model generasi terbaru (2.5) untuk menghindari error 404
             daftar_model = [
-                "gemini-2.0-flash",
-                "gemini-1.5-flash",
+                "gemini-2.5-flash",
+                "gemini-2.5-flash-lite",
             ]
             terakhir_err = None
             for model_name in daftar_model:
@@ -58,9 +60,10 @@ def panggil_ai_guru(topik, cp, komponen_rpp, instruksi_khusus, api_key_ai):
         }
         payload = {"contents": [{"parts": [{"text": prompt}]}]}
 
+        # Menggunakan daftar model generasi terbaru (2.5) untuk menghindari error 404
         daftar_model = [
-            "gemini-2.0-flash",
-            "gemini-1.5-flash",
+            "gemini-2.5-flash",
+            "gemini-2.5-flash-lite",
         ]
 
         res_json = {}
@@ -339,7 +342,7 @@ rpm_data = {
     "praktik_pedagogis": praktik_pedagogis,
     "lingkungan_belajar": lingkungan_belajar,
     "kemitraan_belajar": kemitraan_belajar,
-    "pemanfaatan_digital": pemantan_digital,
+    "pemanfaatan_digital": pemanfaatan_digital,
     "langkah_pembelajaran": langkah_pembelajaran,
     "asesmen_total": asesmen_total,
 }
