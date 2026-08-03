@@ -7,10 +7,9 @@ from docx.oxml import parse_xml
 from docx.oxml.ns import nsdecls
 from docx.shared import Inches, Pt
 
-# Coba muat SDK resmi Google Generative AI
+# Coba memuat SDK resmi Google GenAI yang baru (direkomendasikan untuk API key berawalan AQ)
 try:
-    import google.generativeai as genai
-
+    from google import genai
     HAS_GENAI = True
 except ImportError:
     HAS_GENAI = False
@@ -23,33 +22,36 @@ def panggil_ai_guru(topik, cp, komponen_rpp, instruksi_khusus, api_key_ai):
     clean_key = str(api_key_ai).strip()
     prompt = f"Topik: {topik}\nCP: {cp}\nKomponen: {komponen_rpp}\nInstruksi: {instruksi_khusus}"
 
-    # --- PENDEKATAN 1: Menggunakan SDK Resmi google-generativeai (Paling Stabil) ---
+    # --- PENDEKATAN 1: Menggunakan SDK Resmi Google GenAI (Baru) ---
     if HAS_GENAI:
         try:
-            genai.configure(api_key=clean_key)
+            # Inisialisasi client baru dengan kunci AQ
+            client = genai.Client(api_key=clean_key)
             daftar_model = [
-                "gemini-1.5-flash",
-                "gemini-1.5-flash-latest",
                 "gemini-2.0-flash",
+                "gemini-1.5-flash",
             ]
             terakhir_err = None
             for model_name in daftar_model:
                 try:
-                    model = genai.GenerativeModel(model_name)
-                    res = model.generate_content(prompt)
-                    if res and res.text:
-                        return res.text
+                    response = client.models.generate_content(
+                        model=model_name,
+                        contents=prompt,
+                    )
+                    if response and response.text:
+                        return response.text
                 except Exception as e:
                     terakhir_err = str(e)
                     continue
 
             if terakhir_err:
-                return f"⚠️ Error dari Gemini SDK: {terakhir_err}\n\n💡 Pastikan API Key dibuat via https://aistudio.google.com/app/apikey"
-        except Exception as e:
+                return f"⚠️ Error dari Gemini SDK Baru: {terakhir_err}\n\n💡 Pastikan API Key dibuat via https://aistudio.google.com/app/apikey"
+        except Exception:
             pass
 
-    # --- PENDEKATAN 2: Fallback ke REST Requests ---
+    # --- PENDEKATAN 2: Fallback ke REST Requests (Telah Diperbaiki untuk Kunci AQ) ---
     try:
+        # Menggunakan header saja (tanpa "?key=" di URL) untuk mencegah error kredensial ganda
         headers = {
             "Content-Type": "application/json",
             "x-goog-api-key": clean_key,
@@ -57,14 +59,14 @@ def panggil_ai_guru(topik, cp, komponen_rpp, instruksi_khusus, api_key_ai):
         payload = {"contents": [{"parts": [{"text": prompt}]}]}
 
         daftar_model = [
-            "gemini-1.5-flash",
-            "gemini-1.5-flash-latest",
             "gemini-2.0-flash",
+            "gemini-1.5-flash",
         ]
 
         res_json = {}
         for model_name in daftar_model:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={clean_key}"
+            # Perbaikan: URL tidak lagi menyertakan query parameter "?key=..." agar tidak konflik dengan header
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent"
             response = requests.post(url, headers=headers, json=payload)
             res_json = response.json()
 
@@ -337,7 +339,7 @@ rpm_data = {
     "praktik_pedagogis": praktik_pedagogis,
     "lingkungan_belajar": lingkungan_belajar,
     "kemitraan_belajar": kemitraan_belajar,
-    "pemanfaatan_digital": pemanfaatan_digital,
+    "pemanfaatan_digital": pemantan_digital,
     "langkah_pembelajaran": langkah_pembelajaran,
     "asesmen_total": asesmen_total,
 }
