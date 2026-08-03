@@ -9,32 +9,39 @@ from docx.shared import Inches, Pt
 
 
 def panggil_ai_guru(topik, cp, komponen_rpp, instruksi_khusus):
-    # Mengambil kunci API secara aman dari sistem internal Streamlit Secrets
     api_key_ai = st.secrets.get("GEMINI_API_KEY", "")
 
     if not api_key_ai:
         return "⚠️ Kunci API kosong. Mohon isi 'GEMINI_API_KEY' di menu Secrets Streamlit Cloud Anda."
 
     try:
-        # Endpoint resmi Google Gemini 1.5 Flash (Sangat cepat & stabil)
-        url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
         headers = {"Content-Type": "application/json"}
         params = {"key": str(api_key_ai).strip()}
-
         prompt = f"Topik: {topik}\nCP: {cp}\nKomponen: {komponen_rpp}\nInstruksi: {instruksi_khusus}"
         payload = {"contents": [{"parts": [{"text": prompt}]}]}
 
-        response = requests.post(
-            url, params=params, headers=headers, json=payload
-        )
-        res_json = response.json()
+        daftar_model = [
+            "gemini-2.0-flash",
+            "gemini-1.5-flash-latest",
+            "gemini-1.5-flash-002",
+        ]
 
-        # Cek jika ada error dari API
+        res_json = {}
+        for model_name in daftar_model:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent"
+            response = requests.post(
+                url, params=params, headers=headers, json=payload
+            )
+            res_json = response.json()
+
+            if response.status_code == 200 and "candidates" in res_json:
+                return res_json["candidates"][0]["content"]["parts"][0]["text"]
+
         if "error" in res_json:
             return f"⚠️ Error dari API: {res_json['error'].get('message', 'Terjadi kesalahan')}"
 
-        # Parsing hasil JSON dengan benar
-        return res_json["candidates"][0]["content"]["parts"][0]["text"]
+        return "⚠️ Respon AI tidak valid."
+
     except Exception as e:
         return f"⚠️ Gagal memuat AI otomatis. Anda dapat mengetik manual. (Detail: {str(e)})"
 
@@ -68,7 +75,6 @@ def buat_dokumen_rpm(data):
         ("Capaian Pembelajaran (CP)", data.get("cp", "")),
     ]
 
-    # Perbaikan sintaks penulisan sel tabel
     for i, (l, v) in enumerate(lbls):
         cell_lbl = ti.rows[i].cells[0]
         cell_val = ti.rows[i].cells[1]
@@ -289,7 +295,6 @@ st.markdown("---")
 st.subheader("IV. Finalisasi Dokumen RPP")
 try:
     file_word_ready = buat_dokumen_rpm(rpm_data)
-    # Sanitasi nama file agar aman digunakan saat pengunduhan
     clean_topik = "".join([c if c.isalnum() else "_" for c in topik])
     st.download_button(
         label="📥 Unduh Dokumen RPM (.docx)",
