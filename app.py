@@ -7,22 +7,55 @@ from docx.oxml import parse_xml
 from docx.oxml.ns import nsdecls
 from docx.shared import Inches, Pt
 
+# Coba muat SDK resmi Google Generative AI
+try:
+    import google.generativeai as genai
+
+    HAS_GENAI = True
+except ImportError:
+    HAS_GENAI = False
+
 
 def panggil_ai_guru(topik, cp, komponen_rpp, instruksi_khusus, api_key_ai):
     if not api_key_ai:
         return "⚠️ Kunci API kosong. Mohon isi API Key pada sidebar atau 'GEMINI_API_KEY' di Secrets Streamlit Cloud Anda."
 
+    clean_key = str(api_key_ai).strip()
+    prompt = f"Topik: {topik}\nCP: {cp}\nKomponen: {komponen_rpp}\nInstruksi: {instruksi_khusus}"
+
+    # --- PENDEKATAN 1: Menggunakan SDK Resmi google-generativeai (Paling Stabil) ---
+    if HAS_GENAI:
+        try:
+            genai.configure(api_key=clean_key)
+            daftar_model = [
+                "gemini-1.5-flash",
+                "gemini-1.5-flash-latest",
+                "gemini-2.0-flash",
+            ]
+            terakhir_err = None
+            for model_name in daftar_model:
+                try:
+                    model = genai.GenerativeModel(model_name)
+                    res = model.generate_content(prompt)
+                    if res and res.text:
+                        return res.text
+                except Exception as e:
+                    terakhir_err = str(e)
+                    continue
+
+            if terakhir_err:
+                return f"⚠️ Error dari Gemini SDK: {terakhir_err}\n\n💡 Pastikan API Key dibuat via https://aistudio.google.com/app/apikey"
+        except Exception as e:
+            pass
+
+    # --- PENDEKATAN 2: Fallback ke REST Requests ---
     try:
-        # PENTING: Pengiriman API Key menggunakan header 'x-goog-api-key'
         headers = {
             "Content-Type": "application/json",
-            "x-goog-api-key": str(api_key_ai).strip(),
+            "x-goog-api-key": clean_key,
         }
-
-        prompt = f"Topik: {topik}\nCP: {cp}\nKomponen: {komponen_rpp}\nInstruksi: {instruksi_khusus}"
         payload = {"contents": [{"parts": [{"text": prompt}]}]}
 
-        # Daftar model Gemini
         daftar_model = [
             "gemini-1.5-flash",
             "gemini-1.5-flash-latest",
@@ -31,7 +64,7 @@ def panggil_ai_guru(topik, cp, komponen_rpp, instruksi_khusus, api_key_ai):
 
         res_json = {}
         for model_name in daftar_model:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent"
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={clean_key}"
             response = requests.post(url, headers=headers, json=payload)
             res_json = response.json()
 
@@ -39,7 +72,8 @@ def panggil_ai_guru(topik, cp, komponen_rpp, instruksi_khusus, api_key_ai):
                 return res_json["candidates"][0]["content"]["parts"][0]["text"]
 
         if "error" in res_json:
-            return f"⚠️ Error dari API: {res_json['error'].get('message', 'Terjadi kesalahan')}"
+            msg = res_json["error"].get("message", "Terjadi kesalahan")
+            return f"⚠️ Error dari API: {msg}\n\n💡 Keterangan: Pastikan API Key diambil dari https://aistudio.google.com/app/apikey (Bukan Google Cloud Console biasa)."
 
         return "⚠️ Respon AI tidak valid."
 
@@ -165,13 +199,12 @@ st.set_page_config(page_title="Aplikasi Pembuat RPM Cerdas", layout="wide")
 # --- SIDEBAR PENGATURAN API KEY ---
 with st.sidebar:
     st.header("🔑 Pengaturan API Key")
-    # Mengambil otomatis dari Streamlit Secrets jika ada
     secret_key = st.secrets.get("GEMINI_API_KEY", "")
     api_key_input = st.text_input(
         "Gemini API Key",
         value=secret_key,
         type="password",
-        help="Sistem membaca otomatis dari Secrets. Jika belum diisi di Secrets, Anda bisa menempelkannya di sini.",
+        help="Pastikan Kunci API dibuat dari Google AI Studio (https://aistudio.google.com/app/apikey).",
     )
 
 st.title(
